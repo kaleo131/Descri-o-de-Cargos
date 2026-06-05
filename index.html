@@ -5,15 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal de Cargos e Salários - Cury</title>
     
+    <link rel="icon" type="image/png" href="icone.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Saira:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/_vercel/insights/script.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Saira', 'sans-serif'],
+                    },
+                    colors: {
+                        cury: {
+                            dark: '#17379b',
+                            blue: '#1749e3',
+                            light: '#53ade6',
+                            green: '#31c09d',
+                            orange: '#e16944',
+                            purple: '#9120bb',
+                            bg: '#f4f4f4'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <script defer src="/_vercel/insights/script.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { 
+            background-color: #f4f4f4; 
+            color: #1e293b; 
+            background-image: linear-gradient(rgba(244, 244, 244, 0.88), rgba(244, 244, 244, 0.60)), url('fundo.png');
+            background-attachment: fixed;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
@@ -22,10 +58,15 @@
             to { transform: translateY(0); opacity: 1; }
         }
         .toast-animate { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-gray-100">
-    <div id="root"></div>
+<body class="font-sans antialiased selection:bg-cury-light/30 selection:text-cury-dark flex flex-col min-h-screen relative">
+    <div id="root" class="flex flex-col min-h-screen"></div>
 
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -36,12 +77,11 @@
 
         const getCargosUrl = () => 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTzT1zE75lovKmkVKdlfrcWed-9MLz_234UGBso8WeCNJwP3rvpGJUaFkLmysIDUAqwZvE5xmMPwV3f/pub?output=csv&single=true&gid=0';
         const getUsuariosUrl = () => 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTzT1zE75lovKmkVKdlfrcWed-9MLz_234UGBso8WeCNJwP3rvpGJUaFkLmysIDUAqwZvE5xmMPwV3f/pub?output=csv&single=true&gid=1546332252';
-        const APPS_SCRIPT_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwrNAcNyArmP_4SUDkR01OqVtdfwcgkwSuTIDTXtzwC6NuxHeWM8brajmKn6yR0U3IhRA/exec';
+        const APPS_SCRIPT_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwxVPi3LTwALm5yEu32rMhsHwVwbK31eFO1aXQ9GufJIkmai05WXSOqwALFAzQOjj2eZw/exec';
 
         const fetchWithTimeout = async (url, ms = 15000) => {
             const ctrl = new AbortController();
             const id = setTimeout(() => ctrl.abort(), ms);
-            
             try {
                 const r = await fetch(url, { signal: ctrl.signal });
                 clearTimeout(id);
@@ -56,7 +96,7 @@
                     throw new Error("PROXY_ERR");
                 } catch (proxyError) {
                     clearTimeout(id);
-                    throw new Error("Verifique se a planilha está pública (Qualquer pessoa com o link) e tente novamente.");
+                    throw new Error("A rede impediu o download dos dados. Verifique sua conexão ou se a planilha está pública.");
                 }
             }
         };
@@ -102,22 +142,22 @@
 
             return (
                 <div className="relative" ref={ref}>
-                    <div onClick={() => setIsOpen(!isOpen)} className="w-full min-h-[38px] p-2 border border-blue-300 rounded bg-blue-50/50 cursor-pointer flex flex-wrap gap-1 items-center justify-between">
+                    <div onClick={() => setIsOpen(!isOpen)} className="w-full min-h-[38px] p-2 border border-slate-300 rounded-lg bg-slate-50 cursor-pointer flex flex-wrap gap-1 items-center justify-between">
                         <div className="flex flex-wrap gap-1 flex-1">
-                            {selectedList.length === 0 && <span className="text-gray-400 text-xs">Selecione...</span>}
+                            {selectedList.length === 0 && <span className="text-slate-400 text-sm">Selecione...</span>}
                             {selectedList.map(s => (
-                                <span key={s} className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-1">
+                                <span key={s} className="bg-cury-blue text-white px-2 py-0.5 rounded text-xs font-semibold flex items-center gap-1">
                                     {s}
                                 </span>
                             ))}
                         </div>
-                        <i className={`ph-bold ph-caret-${isOpen ? 'up' : 'down'} text-blue-600 text-xs ml-1`}></i>
+                        <i className={`ph-bold ph-caret-${isOpen ? 'up' : 'down'} text-cury-blue text-sm ml-1`}></i>
                     </div>
                     {isOpen && (
-                        <div className="absolute z-50 top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl py-1">
+                        <div className="absolute z-50 top-full left-0 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-xl py-1">
                             {options.map(opt => (
-                                <div key={opt} onClick={() => toggleOption(opt)} className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex items-center gap-2 text-sm text-gray-700">
-                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedList.includes(opt) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                                <div key={opt} onClick={() => toggleOption(opt)} className="px-3 py-2 hover:bg-slate-50 cursor-pointer flex items-center gap-2 text-sm text-slate-700 font-medium">
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedList.includes(opt) ? 'bg-cury-blue border-cury-blue' : 'border-slate-300'}`}>
                                         {selectedList.includes(opt) && <i className="ph-bold ph-check text-white text-[10px]"></i>}
                                     </div>
                                     {opt}
@@ -132,51 +172,51 @@
         const renderMark = (val) => {
             const v = val.toLowerCase().trim();
             if (v === 'x' || v === 'v' || v === 'sim') {
-                return <div className="mx-auto w-6 h-6 bg-blue-100 text-blue-700 flex items-center justify-center rounded-md"><i className="ph-bold ph-check text-base"></i></div>;
+                return <div className="mx-auto w-6 h-6 bg-cury-light/20 text-cury-blue flex items-center justify-center rounded"><i className="ph-bold ph-check text-base"></i></div>;
             }
             if (v === '' || v === '-' || v === 'não' || v === 'nao') {
-                return <i className="ph-bold ph-minus text-base text-gray-300 mx-auto block text-center"></i>;
+                return <span></span>;
             }
-            return <span className="text-gray-700 text-xs font-semibold px-2 py-1 bg-gray-100 rounded break-words block text-center leading-tight">{val}</span>;
+            return <span className="text-slate-700 text-xs font-bold px-2 py-1 bg-slate-100 rounded break-words block text-center leading-tight border border-slate-200">{val}</span>;
         };
 
         const SmartListOrMatrix = ({ text, titleCol, defaultText = "Não cadastrado", hasEvidence = false }) => {
-            if (!text) return <p className="text-gray-500 italic text-sm">{defaultText}</p>;
+            if (!text) return <p className="text-slate-500 italic text-sm">{defaultText}</p>;
             const lines = text.split('\n').filter(l => l.trim() !== '');
             const isMatrix = lines.some(l => l.includes('|'));
 
             if (!isMatrix) {
                 return (
-                    <ul className="list-disc pl-5 space-y-2 text-gray-600 text-sm marker:text-blue-400">
+                    <ul className="list-disc pl-5 space-y-2 text-slate-600 text-sm marker:text-cury-light font-medium">
                         {lines.map((item, i) => <li key={i} className="pl-1">{item}</li>)}
                     </ul>
                 );
             }
 
             return (
-                <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm mt-2">
-                    <table className="w-full text-sm text-left border-collapse min-w-[500px]">
-                        <thead className="bg-gray-100/80 text-gray-700">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm mt-2 bg-white">
+                    <table className="w-full text-sm text-left border-collapse min-w-full">
+                        <thead className="bg-slate-50 text-cury-dark">
                             <tr>
-                                <th className="p-3 border-b font-bold text-gray-700">{titleCol}</th>
-                                <th className="p-3 border-b text-center w-20 font-extrabold text-blue-900 border-l border-gray-200">JR</th>
-                                <th className="p-3 border-b text-center w-20 font-extrabold text-blue-900 border-l border-gray-200">PL</th>
-                                <th className="p-3 border-b text-center w-20 font-extrabold text-blue-900 border-l border-gray-200">SR</th>
-                                {hasEvidence && <th className="p-3 border-b font-bold text-gray-700 border-l border-gray-200 w-48">Evidência</th>}
+                                <th className="p-3 border-b border-slate-200 font-bold">{titleCol}</th>
+                                <th className="p-3 border-b border-slate-200 text-center w-20 font-extrabold border-l">JR</th>
+                                <th className="p-3 border-b border-slate-200 text-center w-20 font-extrabold border-l">PL</th>
+                                <th className="p-3 border-b border-slate-200 text-center w-20 font-extrabold border-l">SR</th>
+                                {hasEvidence && <th className="p-3 border-b border-slate-200 font-bold border-l w-48">Evidência</th>}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-slate-100">
                             {lines.map((line, idx) => {
                                 const parts = line.split('|').map(p => p.trim());
                                 return (
-                                    <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
-                                        <td className="p-3 text-gray-800 font-medium">{parts[0]}</td>
-                                        <td className="p-2 text-center align-middle border-l border-gray-100">{renderMark(parts[1] || '')}</td>
-                                        <td className="p-2 text-center align-middle border-l border-gray-100">{renderMark(parts[2] || '')}</td>
-                                        <td className="p-2 text-center align-middle border-l border-gray-100">{renderMark(parts[3] || '')}</td>
+                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                        <td className="p-3 text-slate-800 font-semibold">{parts[0]}</td>
+                                        <td className="p-2 text-center align-middle border-l border-slate-100">{renderMark(parts[1] || '')}</td>
+                                        <td className="p-2 text-center align-middle border-l border-slate-100">{renderMark(parts[2] || '')}</td>
+                                        <td className="p-2 text-center align-middle border-l border-slate-100">{renderMark(parts[3] || '')}</td>
                                         {hasEvidence && (
-                                            <td className="p-3 text-gray-600 text-xs border-l border-gray-100">
-                                                {parts[4] ? parts[4] : <i className="ph-bold ph-minus text-gray-300 block text-center"></i>}
+                                            <td className="p-3 text-slate-600 text-xs border-l border-slate-100 font-medium">
+                                                {parts[4] ? parts[4] : <span className="text-slate-300 italic">Não exigida</span>}
                                             </td>
                                         )}
                                     </tr>
@@ -188,6 +228,8 @@
             );
         };
 
+        const normalizeString = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
+
         const EditableMatrix = ({ text, onChange, titleCol, hasEvidence = false, evidenceOptions = [] }) => {
             const [rows, setRows] = useState([]);
 
@@ -196,7 +238,18 @@
                 const lines = text.split('\n').filter(l => l.trim() !== '');
                 const parsed = lines.map(line => {
                     const p = line.split('|').map(x => x.trim());
-                    return { item: p[0]||'', jr: p[1]||'', pl: p[2]||'', sr: p[3]||'', ev: p[4]||'' };
+                    
+                    let evValue = p[4] || '';
+                    if (hasEvidence && evValue) {
+                        const existingEvs = evValue.split(',').map(s => normalizeString(s));
+                        const matchedOptions = [];
+                        evidenceOptions.forEach(opt => {
+                            if (existingEvs.includes(normalizeString(opt))) matchedOptions.push(opt);
+                        });
+                        evValue = matchedOptions.join(', ');
+                    }
+
+                    return { item: p[0]||'', jr: p[1]||'', pl: p[2]||'', sr: p[3]||'', ev: evValue };
                 });
                 setRows(parsed);
             }, [text]);
@@ -235,37 +288,37 @@
             };
 
             return (
-                <div className="overflow-x-auto rounded-lg border border-blue-200 shadow-sm mt-2">
-                    <table className="w-full text-sm text-left border-collapse min-w-[500px] bg-blue-50/20">
-                        <thead className="bg-blue-100/50 text-blue-900">
+                <div className="overflow-x-auto rounded-xl border border-cury-blue/30 shadow-sm mt-2 bg-white">
+                    <table className="w-full text-sm text-left border-collapse min-w-full">
+                        <thead className="bg-cury-blue/10 text-cury-dark">
                             <tr>
-                                <th className="p-3 border-b font-bold">{titleCol}</th>
-                                <th className="p-3 border-b text-center w-16 border-l border-blue-200">JR</th>
-                                <th className="p-3 border-b text-center w-16 border-l border-blue-200">PL</th>
-                                <th className="p-3 border-b text-center w-16 border-l border-blue-200">SR</th>
-                                {hasEvidence && <th className="p-3 border-b font-bold border-l border-blue-200 w-48">Evidência</th>}
-                                <th className="p-3 border-b text-center w-12 border-l border-blue-200">Ação</th>
+                                <th className="p-3 border-b border-cury-blue/20 font-bold">{titleCol}</th>
+                                <th className="p-3 border-b border-cury-blue/20 text-center w-16 border-l border-cury-blue/20">JR</th>
+                                <th className="p-3 border-b border-cury-blue/20 text-center w-16 border-l border-cury-blue/20">PL</th>
+                                <th className="p-3 border-b border-cury-blue/20 text-center w-16 border-l border-cury-blue/20">SR</th>
+                                {hasEvidence && <th className="p-3 border-b border-cury-blue/20 font-bold border-l border-cury-blue/20 w-56">Evidência</th>}
+                                <th className="p-3 border-b border-cury-blue/20 text-center w-12 border-l border-cury-blue/20">Ação</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-blue-100">
+                        <tbody className="divide-y divide-slate-100">
                             {rows.map((r, idx) => (
                                 <tr key={idx}>
-                                    <td className="p-2"><input type="text" value={r.item} onChange={(e) => updateRow(idx, 'item', e.target.value)} className="w-full p-2 border border-blue-300 rounded bg-white focus:ring-1 focus:ring-blue-500 text-sm" placeholder="Descreva o item..." /></td>
-                                    <td className="p-2 text-center border-l border-blue-100"><input type="checkbox" checked={isChecked(r.jr)} onChange={() => handleCheck(idx, 'jr', r.jr)} className="w-5 h-5 text-blue-600 rounded cursor-pointer" /></td>
-                                    <td className="p-2 text-center border-l border-blue-100"><input type="checkbox" checked={isChecked(r.pl)} onChange={() => handleCheck(idx, 'pl', r.pl)} className="w-5 h-5 text-blue-600 rounded cursor-pointer" /></td>
-                                    <td className="p-2 text-center border-l border-blue-100"><input type="checkbox" checked={isChecked(r.sr)} onChange={() => handleCheck(idx, 'sr', r.sr)} className="w-5 h-5 text-blue-600 rounded cursor-pointer" /></td>
+                                    <td className="p-2"><input type="text" value={r.item} onChange={(e) => updateRow(idx, 'item', e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg bg-slate-50 focus:ring-2 focus:ring-cury-blue text-sm outline-none font-medium" placeholder="Descreva..." /></td>
+                                    <td className="p-2 text-center border-l border-slate-100"><input type="checkbox" checked={isChecked(r.jr)} onChange={() => handleCheck(idx, 'jr', r.jr)} className="w-5 h-5 text-cury-blue rounded cursor-pointer" /></td>
+                                    <td className="p-2 text-center border-l border-slate-100"><input type="checkbox" checked={isChecked(r.pl)} onChange={() => handleCheck(idx, 'pl', r.pl)} className="w-5 h-5 text-cury-blue rounded cursor-pointer" /></td>
+                                    <td className="p-2 text-center border-l border-slate-100"><input type="checkbox" checked={isChecked(r.sr)} onChange={() => handleCheck(idx, 'sr', r.sr)} className="w-5 h-5 text-cury-blue rounded cursor-pointer" /></td>
                                     {hasEvidence && (
-                                        <td className="p-2 border-l border-blue-100">
+                                        <td className="p-2 border-l border-slate-100">
                                             <MultiSelectDropdown options={evidenceOptions} selectedValues={r.ev} onChange={(val) => updateRow(idx, 'ev', val)} />
                                         </td>
                                     )}
-                                    <td className="p-2 text-center border-l border-blue-100"><button onClick={() => removeRow(idx)} className="text-red-500 hover:bg-red-100 p-1.5 rounded"><i className="ph-bold ph-trash text-lg"></i></button></td>
+                                    <td className="p-2 text-center border-l border-slate-100"><button onClick={() => removeRow(idx)} className="text-cury-orange hover:bg-orange-50 p-1.5 rounded transition-colors"><i className="ph-bold ph-trash text-lg"></i></button></td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                    <div className="p-2 bg-blue-50/50 border-t border-blue-200 flex justify-center">
-                        <button onClick={addRow} className="text-blue-700 font-semibold text-sm hover:bg-blue-100 px-4 py-1.5 rounded-full flex items-center gap-1"><i className="ph-bold ph-plus"></i> Adicionar Linha</button>
+                    <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-center">
+                        <button onClick={addRow} className="text-cury-blue font-bold text-sm hover:bg-cury-blue/10 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"><i className="ph-bold ph-plus"></i> Adicionar Linha</button>
                     </div>
                 </div>
             );
@@ -295,23 +348,23 @@
             };
 
             return (
-                <div className="overflow-x-auto rounded-lg border border-blue-200 shadow-sm mt-2">
-                    <table className="w-full text-sm text-left border-collapse min-w-[500px] bg-blue-50/20">
-                        <thead className="bg-blue-100/50 text-blue-900">
+                <div className="overflow-x-auto rounded-xl border border-cury-blue/30 shadow-sm mt-2 bg-white">
+                    <table className="w-full text-sm text-left border-collapse min-w-full">
+                        <thead className="bg-cury-blue/10 text-cury-dark">
                             <tr>
-                                <th className="p-3 border-b font-bold">{titleCol}</th>
-                                <th className="p-3 border-b text-center w-32 border-l border-blue-200">JR</th>
-                                <th className="p-3 border-b text-center w-32 border-l border-blue-200">PL</th>
-                                <th className="p-3 border-b text-center w-32 border-l border-blue-200">SR</th>
+                                <th className="p-3 border-b border-cury-blue/20 font-bold">{titleCol}</th>
+                                <th className="p-3 border-b border-cury-blue/20 text-center w-32 border-l border-cury-blue/20">JR</th>
+                                <th className="p-3 border-b border-cury-blue/20 text-center w-32 border-l border-cury-blue/20">PL</th>
+                                <th className="p-3 border-b border-cury-blue/20 text-center w-32 border-l border-cury-blue/20">SR</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-blue-100">
+                        <tbody className="divide-y divide-slate-100">
                             {rows.map((r, idx) => (
                                 <tr key={idx}>
-                                    <td className="p-3 font-semibold text-blue-900 bg-blue-50/50">{r.item}</td>
-                                    <td className="p-2 border-l border-blue-100"><input type="text" value={r.jr} onChange={(e) => updateRow(idx, 'jr', e.target.value)} className="w-full p-2 border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 text-xs text-center" /></td>
-                                    <td className="p-2 border-l border-blue-100"><input type="text" value={r.pl} onChange={(e) => updateRow(idx, 'pl', e.target.value)} className="w-full p-2 border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 text-xs text-center" /></td>
-                                    <td className="p-2 border-l border-blue-100"><input type="text" value={r.sr} onChange={(e) => updateRow(idx, 'sr', e.target.value)} className="w-full p-2 border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 text-xs text-center" /></td>
+                                    <td className="p-3 font-bold text-cury-dark bg-slate-50">{r.item}</td>
+                                    <td className="p-2 border-l border-slate-100"><input type="text" value={r.jr} onChange={(e) => updateRow(idx, 'jr', e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cury-blue text-xs text-center outline-none bg-slate-50 font-medium" /></td>
+                                    <td className="p-2 border-l border-slate-100"><input type="text" value={r.pl} onChange={(e) => updateRow(idx, 'pl', e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cury-blue text-xs text-center outline-none bg-slate-50 font-medium" /></td>
+                                    <td className="p-2 border-l border-slate-100"><input type="text" value={r.sr} onChange={(e) => updateRow(idx, 'sr', e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cury-blue text-xs text-center outline-none bg-slate-50 font-medium" /></td>
                                 </tr>
                             ))}
                         </tbody>
@@ -319,7 +372,6 @@
                 </div>
             );
         };
-
 
         function PortalApp() {
             const [cargos, setCargos] = useState([]);
@@ -422,12 +474,13 @@
 
             const handleLogin = (e) => {
                 e.preventDefault();
-                const u = usuarios.find(user => user.email === loginEmail.toLowerCase().trim() && user.senha === loginSenha.trim());
+                const emailFormatado = loginEmail.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                const u = usuarios.find(user => normalizeString(user.email) === emailFormatado && user.senha === loginSenha.trim());
                 if (u) {
                     setIsAuth(u);
                     setLoginEmail(''); setLoginSenha('');
                     setPastasAbertas({ [u.diretoria]: true, [`${u.diretoria}|${u.departamento}`]: true });
-                    showToast("Login realizado com sucesso!", "success");
+                    showToast("Acesso liberado com sucesso!", "success");
                 } else {
                     showToast("E-mail ou senha incorretos.", "error");
                 }
@@ -506,7 +559,7 @@
                 };
 
                 try {
-                    const res = await fetch(APPS_SCRIPT_WEBHOOK, {
+                    await fetch(APPS_SCRIPT_WEBHOOK, {
                         method: 'POST',
                         mode: 'no-cors',
                         headers: { 'Content-Type': 'text/plain' },
@@ -521,93 +574,89 @@
                 }
             };
 
-
             return (
-                <div className="min-h-screen bg-gray-100 flex flex-col font-sans relative">
+                <div className="flex flex-col min-h-screen">
                     
                     {toast && (
-                        <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-xl shadow-2xl text-white font-bold flex items-center gap-3 toast-animate ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                            <i className={`ph-fill ${toast.type === 'error' ? 'ph-warning-circle' : 'ph-check-circle'} text-2xl`}></i>
-                            {toast.msg}
+                        <div className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-4 rounded-lg shadow-2xl flex items-center gap-4 text-white font-medium toast-animate ${toast.type === 'error' ? 'bg-red-600' : 'bg-cury-green'}`}>
+                            <i className={`ph-fill ${toast.type === 'error' ? 'ph-warning-circle' : 'ph-check-circle'} text-2xl`}></i> 
+                            <span className="text-base">{toast.msg}</span>
                         </div>
                     )}
 
-                    <div className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)}></div>
+                    <div className={`fixed inset-0 bg-black/50 z-[60] transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)}></div>
 
-                    <div className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                        <div className="bg-blue-900 p-5 flex justify-between items-center text-white">
-                            <h2 className="font-bold text-lg flex items-center gap-2"><i className="ph-bold ph-list"></i> Menu de Cargos</h2>
-                            <button onClick={() => setIsSidebarOpen(false)} className="hover:text-blue-300"><i className="ph-bold ph-x text-xl"></i></button>
+                    <div className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-[70] transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                        <div className="bg-cury-dark p-6 text-white flex justify-between items-center">
+                            <h2 className="font-bold text-lg flex items-center gap-2"><i className="ph-bold ph-list"></i> Menu de Acesso</h2>
+                            <button onClick={() => setIsSidebarOpen(false)} className="hover:text-cury-orange transition-colors"><i className="ph-bold ph-x text-2xl"></i></button>
                         </div>
                         
-                        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                        <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
                             {!isAuth ? (
-                                <form onSubmit={handleLogin} className="space-y-4 bg-white p-5 rounded-xl border border-gray-200 shadow-sm mt-4">
-                                    <div className="text-center mb-6">
-                                        <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-blue-600">
-                                            <i className="ph-fill ph-lock-key text-3xl"></i>
-                                        </div>
-                                        <h3 className="font-bold text-gray-800">Acesso Restrito</h3>
-                                        <p className="text-xs text-gray-500 mt-1">Faça login com seu e-mail corporativo para acessar os descritivos da sua área.</p>
+                                <form onSubmit={handleLogin} className="space-y-4 animate-fade-in mt-4">
+                                    <p className="text-slate-600 text-sm mb-4">Insira sua credencial de gestor para acessar os descritivos da sua Diretoria.</p>
+                                    <div>
+                                        <label className="block text-sm font-bold text-cury-dark mb-1">E-mail Corporativo</label>
+                                        <input type="email" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} className="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-cury-blue outline-none text-sm" placeholder="seuemail@cury.net" required/>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-1">E-mail</label>
-                                        <input type="email" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="seuemail@cury.net" required/>
+                                        <label className="block text-sm font-bold text-cury-dark mb-1">Senha de Acesso</label>
+                                        <input type="password" value={loginSenha} onChange={e=>setLoginSenha(e.target.value)} className="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-cury-blue outline-none text-sm" placeholder="••••••••" required/>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-1">Senha</label>
-                                        <input type="password" value={loginSenha} onChange={e=>setLoginSenha(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="••••••••" required/>
-                                    </div>
-                                    <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition-colors mt-2 text-sm shadow-md">Entrar no Sistema</button>
+                                    <button type="submit" className="w-full bg-cury-blue hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-2 shadow-md">Desbloquear Ferramentas</button>
                                 </form>
                             ) : (
-                                <div>
-                                    <div className="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center gap-3">
-                                        <div className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg">{isAuth.nome.charAt(0)}</div>
+                                <div className="animate-fade-in">
+                                    <div className="mb-4 bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-3 shadow-sm">
+                                        <div className="bg-cury-blue text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">{isAuth.nome.charAt(0)}</div>
                                         <div className="flex-1 overflow-hidden">
-                                            <p className="font-bold text-sm text-blue-900 truncate">{isAuth.nome}</p>
-                                            <p className="text-xs text-blue-600 truncate">{isAuth.departamento}</p>
+                                            <p className="font-bold text-sm text-cury-dark truncate">{isAuth.nome}</p>
+                                            <p className="text-xs text-slate-500 truncate">{isAuth.departamento}</p>
                                         </div>
-                                        <button onClick={() => { setIsAuth(false); setCargoSelecionado(null); }} className="text-gray-400 hover:text-red-500"><i className="ph-bold ph-sign-out text-lg"></i></button>
+                                        <button onClick={() => { setIsAuth(false); setCargoSelecionado(null); }} className="text-slate-400 hover:text-cury-orange transition-colors"><i className="ph-bold ph-sign-out text-xl"></i></button>
                                     </div>
 
+                                    <div className="w-full h-px bg-slate-200 my-4"></div>
+
                                     <div className="relative mb-4">
-                                        <i className="ph-bold ph-magnifying-glass absolute left-3 top-2.5 text-gray-400"></i>
-                                        <input type="text" placeholder="Buscar cargo..." value={termoBusca} onChange={e=>setTermoBusca(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                                        <i className="ph-bold ph-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
+                                        <input type="text" placeholder="Buscar cargo..." value={termoBusca} onChange={e=>setTermoBusca(e.target.value)} className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cury-blue outline-none shadow-sm" />
                                     </div>
 
                                     {termoBusca ? (
-                                        <div className="space-y-1">
+                                        <div className="space-y-2">
                                             {cargosFiltradosBusca.map(c => (
-                                                <button key={c.id} onClick={() => { setCargoSelecionado(c); setIsSidebarOpen(false); if(isEditing) cancelarEdicao(); }} className={`w-full text-left px-3 py-2 rounded-lg transition-colors border-l-4 ${cargoSelecionado?.id === c.id ? 'bg-blue-100 border-blue-600' : 'bg-white border-transparent hover:bg-gray-100 shadow-sm'}`}>
-                                                    <p className={`font-semibold text-sm ${cargoSelecionado?.id === c.id ? 'text-blue-900' : 'text-gray-800'}`}>{c.titulo}</p>
+                                                <button key={c.id} onClick={() => { setCargoSelecionado(c); setIsSidebarOpen(false); if(isEditing) cancelarEdicao(); }} className={`w-full text-left px-4 py-3 rounded-xl transition-colors border ${cargoSelecionado?.id === c.id ? 'bg-cury-blue/10 border-cury-blue text-cury-dark shadow-sm' : 'bg-white border-slate-200 hover:border-cury-light text-slate-700'}`}>
+                                                    <p className="font-bold text-sm">{c.titulo}</p>
                                                 </button>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="space-y-1">
+                                        <div className="space-y-2">
                                             {Object.keys(arvoreDeCargos).map(area => (
-                                                <div key={area} className="mb-1">
-                                                    <button onClick={() => togglePasta(area)} className="w-full flex items-center gap-2 px-2 py-2 hover:bg-blue-100 rounded-lg text-left group">
-                                                        <i className={`ph-fill ${pastasAbertas[area] ? 'ph-folder-open' : 'ph-folder'} text-blue-500 text-lg`}></i>
-                                                        <span className="font-bold text-sm text-gray-800 flex-1 truncate">{area}</span>
-                                                        <i className={`ph-bold ${pastasAbertas[area] ? 'ph-caret-down' : 'ph-caret-right'} text-gray-400`}></i>
+                                                <div key={area} className="mb-2">
+                                                    <button onClick={() => togglePasta(area)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-100 rounded-lg text-left group transition-colors">
+                                                        <i className={`ph-fill ${pastasAbertas[area] ? 'ph-folder-open' : 'ph-folder'} text-cury-light text-xl group-hover:text-cury-blue`}></i>
+                                                        <span className="font-bold text-sm text-cury-dark flex-1 truncate">{area}</span>
+                                                        <i className={`ph-bold ${pastasAbertas[area] ? 'ph-caret-down' : 'ph-caret-right'} text-slate-400`}></i>
                                                     </button>
                                                     {pastasAbertas[area] && (
-                                                        <div className="ml-5 pl-2 border-l border-blue-200 mt-1 space-y-1">
+                                                        <div className="ml-5 pl-3 border-l-2 border-slate-200 mt-1 space-y-1">
                                                             {Object.keys(arvoreDeCargos[area]).map(dept => {
                                                                 const idDept = `${area}|${dept}`;
                                                                 return (
                                                                     <div key={idDept}>
-                                                                        <button onClick={() => togglePasta(idDept)} className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-blue-100 rounded-lg text-left">
-                                                                            <i className={`ph-fill ${pastasAbertas[idDept] ? 'ph-folder-open' : 'ph-folder'} text-blue-400`}></i>
-                                                                            <span className="font-medium text-sm text-gray-700 flex-1 truncate">{dept}</span>
+                                                                        <button onClick={() => togglePasta(idDept)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-100 rounded-lg text-left group transition-colors">
+                                                                            <i className={`ph-fill ${pastasAbertas[idDept] ? 'ph-folder-open' : 'ph-folder'} text-slate-400 group-hover:text-cury-blue text-lg`}></i>
+                                                                            <span className="font-semibold text-sm text-slate-700 flex-1 truncate">{dept}</span>
+                                                                            <i className={`ph-bold ${pastasAbertas[idDept] ? 'ph-caret-down' : 'ph-caret-right'} text-slate-300`}></i>
                                                                         </button>
                                                                         {pastasAbertas[idDept] && (
-                                                                            <div className="ml-4 pl-2 border-l border-gray-200 mt-1 space-y-0.5 mb-2">
+                                                                            <div className="ml-5 pl-3 border-l border-slate-200 mt-1 space-y-1 mb-3">
                                                                                 {arvoreDeCargos[area][dept].map(c => (
-                                                                                    <button key={c.id} onClick={() => { setCargoSelecionado(c); setIsSidebarOpen(false); if(isEditing) cancelarEdicao(); }} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left ${cargoSelecionado?.id === c.id ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-200'}`}>
-                                                                                        <i className="ph-fill ph-briefcase text-xs opacity-70"></i>
+                                                                                    <button key={c.id} onClick={() => { setCargoSelecionado(c); setIsSidebarOpen(false); if(isEditing) cancelarEdicao(); }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors ${cargoSelecionado?.id === c.id ? 'bg-cury-blue text-white shadow-sm font-bold' : 'text-slate-600 hover:bg-slate-200 font-medium'}`}>
+                                                                                        <i className={`ph-fill ph-briefcase text-base ${cargoSelecionado?.id === c.id ? 'text-white/70' : 'text-slate-400'}`}></i>
                                                                                         <span className="text-xs truncate">{c.titulo}</span>
                                                                                     </button>
                                                                                 ))}
@@ -627,36 +676,36 @@
                         </div>
                     </div>
 
-                    <header className="bg-blue-900 text-white shadow-md z-30 sticky top-0">
-                        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-blue-800 hover:bg-blue-700 rounded-lg transition-colors border border-white/10 shadow-sm flex items-center gap-2">
-                                    <i className="ph-bold ph-list text-xl"></i>
-                                    <span className="hidden sm:inline font-semibold text-sm">Menu</span>
+                    <header className="bg-cury-dark text-white border-b-4 border-cury-green sticky top-0 z-50 shadow-md">
+                        <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 w-full md:w-auto">
+                                <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 hover:bg-white/10 rounded-lg transition-colors flex items-center justify-center">
+                                    <i className="ph-bold ph-list text-2xl"></i>
                                 </button>
-                                <div className="h-8 w-px bg-white/20 mx-1 hidden sm:block"></div>
-                                <div className="bg-white p-1.5 rounded flex items-center justify-center">
-                                    <i className="ph-fill ph-buildings text-xl text-blue-900"></i>
-                                </div>
+                                <div className="h-8 w-px bg-white/20 hidden md:block"></div>
+                                <img src="logo.png" alt="Logo Cury" className="h-10 w-auto" onError={(e)=>{e.target.onerror = null; e.target.src="https://placehold.co/100x40/17379b/ffffff?text=CURY"}}/>
+                                <div className="h-8 w-px bg-white/20 hidden md:block"></div>
                                 <div>
-                                    <h1 className="text-lg font-bold tracking-tight leading-tight">Cargos & Salários</h1>
-                                    <p className="text-blue-200 text-[10px] uppercase font-bold tracking-wider">Estrutura Cury</p>
+                                    <h1 className="text-xl font-extrabold tracking-tight uppercase">Portal de Cargos</h1>
+                                    <p className="text-xs text-cury-light font-medium hover:text-white transition-colors hover:underline">
+                                        <a href="mailto:treinamento@cury.net">Remuneração & DHO</a>
+                                    </p>
                                 </div>
                             </div>
                             
-                            <div className="flex gap-2">
+                            <div className="flex gap-3 w-full md:w-auto justify-end">
                                 {!isEditing ? (
-                                    <button onClick={buscarDadosGlobais} className="px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold bg-blue-800 text-white hover:bg-blue-700 transition-colors shadow-sm">
-                                        <i className={`ph-bold ph-arrows-clockwise text-base ${loading ? 'animate-spin' : ''}`}></i>
-                                        <span className="hidden sm:inline">Atualizar Base</span>
+                                    <button onClick={buscarDadosGlobais} className="text-sm font-bold bg-cury-blue py-2 px-5 rounded-full text-white flex items-center gap-2 border border-cury-light/30 shadow-inner hover:bg-blue-600 transition-colors">
+                                        <i className={`ph-bold ph-arrows-clockwise text-lg ${loading ? 'animate-spin' : ''}`}></i>
+                                        <span className="hidden sm:inline">Atualizar Dados</span>
                                     </button>
                                 ) : (
                                     <div className="flex gap-2 animate-fade-in">
-                                        <button onClick={cancelarEdicao} disabled={isSubmitting} className="px-4 py-2 rounded-lg text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 transition-colors border border-red-200">
+                                        <button onClick={cancelarEdicao} disabled={isSubmitting} className="py-2 px-4 rounded-full text-sm font-bold bg-white text-cury-orange hover:bg-slate-100 transition-colors shadow-sm">
                                             Cancelar
                                         </button>
-                                        <button onClick={enviarRevisao} disabled={isSubmitting} className="px-4 py-2 rounded-lg text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shadow-md flex items-center gap-2">
-                                            {isSubmitting ? <i className="ph-bold ph-spinner animate-spin"></i> : <i className="ph-bold ph-paper-plane-tilt"></i>}
+                                        <button onClick={enviarRevisao} disabled={isSubmitting} className="py-2 px-5 rounded-full text-sm font-bold bg-cury-green text-white hover:bg-teal-500 transition-colors shadow-md flex items-center gap-2 border border-white/20">
+                                            {isSubmitting ? <i className="ph-bold ph-spinner animate-spin text-lg"></i> : <i className="ph-bold ph-paper-plane-tilt text-lg"></i>}
                                             <span className="hidden sm:inline">{isSubmitting ? 'Enviando...' : 'Enviar para RH'}</span>
                                         </button>
                                     </div>
@@ -665,95 +714,97 @@
                         </div>
                     </header>
 
-                    <main className="flex-1 w-full max-w-5xl mx-auto p-4 md:p-8 flex flex-col h-full">
+                    <main className="flex-grow w-full max-w-6xl mx-auto p-4 md:p-8 flex flex-col h-full">
                         {loading && cargos.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center">
-                                <i className="ph-bold ph-spinner text-5xl text-blue-600 animate-spin mb-4"></i>
-                                <h2 className="text-xl font-semibold text-gray-700">Conectando aos Servidores...</h2>
+                                <i className="ph-bold ph-spinner text-5xl text-cury-blue animate-spin mb-4"></i>
+                                <h2 className="text-xl font-bold text-cury-dark">Conectando aos Servidores...</h2>
                             </div>
                         ) : erro ? (
                             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                                <div className="bg-red-50 p-6 rounded-2xl max-w-lg border border-red-100">
+                                <div className="bg-red-50 p-6 rounded-2xl max-w-lg border border-red-200 shadow-sm">
                                     <i className="ph-fill ph-warning-circle text-5xl text-red-500 mx-auto mb-4"></i>
-                                    <h2 className="text-xl font-bold text-gray-800 mb-2">Erro de Conexão</h2>
-                                    <p className="text-gray-600 text-sm">{erro}</p>
+                                    <h2 className="text-xl font-bold text-red-900 mb-2">Erro de Conexão</h2>
+                                    <p className="text-slate-700 text-sm font-medium">{erro}</p>
                                 </div>
                             </div>
                         ) : !isAuth ? (
                             <div className="flex flex-col items-center justify-center h-full text-center flex-1">
-                                <div className="bg-white p-8 rounded-full mb-6 shadow-sm border border-gray-200 relative">
-                                    <i className="ph-fill ph-shield-check text-6xl text-blue-600 relative z-10"></i>
-                                    <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-20"></div>
+                                <div className="bg-white p-8 rounded-full mb-6 shadow-md border border-slate-200 relative">
+                                    <i className="ph-fill ph-shield-check text-6xl text-cury-blue relative z-10"></i>
+                                    <div className="absolute inset-0 bg-cury-light/20 rounded-full animate-ping opacity-50"></div>
                                 </div>
-                                <h3 className="text-3xl font-black text-gray-800 mb-3 tracking-tight">Acesso de Gestor</h3>
-                                <p className="text-gray-500 max-w-md text-base leading-relaxed">
-                                    Abra o Menu Lateral (canto superior esquerdo) e faça login com seu e-mail corporativo para visualizar os descritivos técnicos de sua equipe.
+                                <h3 className="text-3xl font-extrabold text-cury-dark mb-4 tracking-tight">Área do Gestor</h3>
+                                <p className="text-slate-600 max-w-lg text-lg leading-relaxed font-medium bg-white/60 p-5 rounded-xl border border-slate-200 shadow-sm">
+                                    Abra o Menu Lateral e faça login com as suas credenciais corporativas para acessar, analisar e solicitar revisão dos descritivos da sua Diretoria.
                                 </p>
-                                <button onClick={() => setIsSidebarOpen(true)} className="mt-8 bg-blue-900 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-800 transition transform hover:scale-105">
-                                    Abrir Menu de Login
+                                <button onClick={() => setIsSidebarOpen(true)} className="mt-8 bg-cury-orange text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-orange-600 transition transform hover:scale-105 flex items-center gap-2">
+                                    <i className="ph-bold ph-sign-in text-xl"></i> Fazer Login
                                 </button>
                             </div>
                         ) : cargoSelecionado ? (
-                            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden flex flex-col relative pb-8">
+                            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col relative pb-8 w-full">
                                 
                                 {isEditing && (
-                                    <div className="bg-emerald-500 text-white text-center py-1.5 text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2">
-                                        <i className="ph-bold ph-pencil-simple"></i> Modo de Edição Ativo
+                                    <div className="bg-cury-orange text-white text-center py-2 text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2 shadow-inner">
+                                        <i className="ph-bold ph-pencil-simple text-base"></i> Modo de Edição e Revisão Ativo
                                     </div>
                                 )}
 
-                                <div className={`p-6 md:p-10 border-b border-gray-200 relative overflow-hidden flex flex-col justify-end ${isEditing ? 'bg-emerald-900' : 'bg-blue-900'} text-white transition-colors duration-500 min-h-[200px]`}>
+                                <div className={`p-8 md:p-12 border-b border-slate-200 relative overflow-hidden flex flex-col justify-end transition-colors duration-500 min-h-[220px] ${isEditing ? 'bg-slate-800' : 'bg-cury-dark'} text-white`}>
                                     <div className="absolute top-0 right-0 opacity-[0.05] pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-                                        <i className="ph-fill ph-buildings text-[300px]"></i>
+                                        <i className="ph-fill ph-briefcase text-[350px]"></i>
                                     </div>
-                                    <div className="relative z-10 w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
+                                    <div className="relative z-10 w-full flex flex-col md:flex-row md:items-end justify-between gap-6">
                                         <div className="flex-1">
-                                            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-blue-200 mb-4 uppercase tracking-wider bg-black/20 w-max px-3 py-1.5 rounded-full backdrop-blur-sm">
+                                            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-cury-light mb-4 uppercase tracking-wider bg-black/30 w-max px-4 py-2 rounded-full backdrop-blur-md border border-white/10 shadow-sm">
                                                 <span>{cargoSelecionado.area}</span>
                                                 <i className="ph-bold ph-caret-right text-[10px]"></i>
                                                 <span className="text-white">{cargoSelecionado.departamento}</span>
                                             </div>
-                                            <h2 className="text-3xl md:text-4xl font-black mb-3 leading-tight tracking-tight">{cargoSelecionado.titulo}</h2>
+                                            <h2 className="text-3xl md:text-5xl font-black mb-4 leading-tight tracking-tight">{cargoSelecionado.titulo}</h2>
                                             
                                             <div className="flex flex-wrap gap-3">
-                                                {cargoSelecionado.cbo && <span className="bg-black/30 border border-white/20 px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1"><span className="opacity-70">CBO:</span> {cargoSelecionado.cbo}</span>}
-                                                {cargoSelecionado.codigo && <span className="bg-black/30 border border-white/20 px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1"><span className="opacity-70">CÓD:</span> {cargoSelecionado.codigo}</span>}
+                                                {cargoSelecionado.cbo && <span className="bg-white/10 border border-white/20 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"><span className="text-cury-light">CBO:</span> {cargoSelecionado.cbo}</span>}
+                                                {cargoSelecionado.codigo && <span className="bg-white/10 border border-white/20 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"><span className="text-cury-light">CÓD:</span> {cargoSelecionado.codigo}</span>}
                                             </div>
                                         </div>
                                         {!isEditing && (
-                                            <button onClick={ativarEdicao} className="relative z-10 bg-white text-blue-900 hover:bg-blue-50 px-5 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg transition-transform transform hover:-translate-y-1">
-                                                <i className="ph-bold ph-pencil-simple-line text-lg"></i> Solicitar Revisão
+                                            <button onClick={ativarEdicao} className="relative z-10 bg-cury-green text-white hover:bg-teal-500 px-6 py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg transition-transform transform hover:-translate-y-1 border border-white/20">
+                                                <i className="ph-bold ph-pencil-simple-line text-xl"></i> Propor Alterações
                                             </button>
                                         )}
                                     </div>
                                 </div>
                                 
-                                <div className="p-6 md:p-10 space-y-10">
+                                <div className="p-8 md:p-12 space-y-12">
                                     <section>
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                             <i className="ph-fill ph-tree-structure text-lg"></i> Estrutura Hierárquica
                                         </h3>
-                                        <p className="text-blue-900 font-bold bg-blue-50 px-4 py-3 rounded-lg border border-blue-100 text-sm">
+                                        <p className="text-cury-dark font-bold bg-slate-50 px-5 py-4 rounded-xl border border-slate-200 text-sm shadow-sm">
                                             {cargoSelecionado.hierarquia || "Estrutura não detalhada."}
                                         </p>
                                     </section>
 
                                     <section>
-                                        <h3 className="text-lg font-black text-gray-800 border-b-2 border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                                            <i className="ph-fill ph-target text-red-500 text-2xl"></i> Missão do Cargo
+                                        <h3 className="text-xl font-extrabold text-cury-dark border-b-2 border-cury-blue/20 pb-2 mb-5 flex items-center gap-2">
+                                            <div className="p-1.5 bg-cury-blue/10 rounded-lg text-cury-blue"><i className="ph-bold ph-target"></i></div>
+                                            Missão do Cargo
                                         </h3>
                                         {isEditing ? (
-                                            <textarea value={editedCargo.missao} onChange={(e) => setEditedCargo({...editedCargo, missao: e.target.value})} className="w-full border-2 border-emerald-300 rounded-lg p-4 focus:ring-4 focus:ring-emerald-100 outline-none text-gray-800 font-medium bg-emerald-50/30" rows={3} />
+                                            <textarea value={editedCargo.missao} onChange={(e) => setEditedCargo({...editedCargo, missao: e.target.value})} className="w-full border-2 border-cury-orange/50 rounded-xl p-5 focus:ring-4 focus:ring-cury-orange/20 outline-none text-slate-800 font-medium bg-orange-50/30 shadow-inner" rows={3} />
                                         ) : (
-                                            <p className="text-gray-700 leading-relaxed font-medium bg-gray-50 p-5 rounded-xl border border-gray-100">
+                                            <p className="text-slate-600 leading-relaxed font-medium bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                                                 {cargoSelecionado.missao || "Missão não cadastrada."}
                                             </p>
                                         )}
                                     </section>
 
                                     <section>
-                                        <h3 className="text-lg font-black text-gray-800 border-b-2 border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                                            <i className="ph-fill ph-list-checks text-blue-600 text-2xl"></i> Escopo / Responsabilidades
+                                        <h3 className="text-xl font-extrabold text-cury-dark border-b-2 border-cury-blue/20 pb-2 mb-5 flex items-center gap-2">
+                                            <div className="p-1.5 bg-cury-green/10 rounded-lg text-cury-green"><i className="ph-bold ph-list-checks"></i></div>
+                                            Escopo / Responsabilidades
                                         </h3>
                                         {isEditing ? (
                                             <EditableMatrix text={editedCargo.escopo} titleCol="Responsabilidade" onChange={(val) => setEditedCargo({...editedCargo, escopo: val})} />
@@ -762,21 +813,23 @@
                                         )}
                                     </section>
 
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                    <div className="space-y-12">
                                         <section>
-                                            <h3 className="text-lg font-black text-gray-800 border-b-2 border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                                                <i className="ph-fill ph-wrench text-gray-600 text-2xl"></i> Técnicas
+                                            <h3 className="text-xl font-extrabold text-cury-dark border-b-2 border-cury-blue/20 pb-2 mb-5 flex items-center gap-2">
+                                                <div className="p-1.5 bg-cury-orange/10 rounded-lg text-cury-orange"><i className="ph-bold ph-wrench"></i></div>
+                                                Competências Técnicas
                                             </h3>
                                             {isEditing ? (
                                                 <EditableMatrix text={editedCargo.compTecnicas} titleCol="Item" hasEvidence={true} evidenceOptions={['Certificado', 'Experiência', 'Teste', 'Entrevista']} onChange={(val) => setEditedCargo({...editedCargo, compTecnicas: val})} />
                                             ) : (
-                                                <SmartListOrMatrix text={cargoSelecionado.compTecnicas} titleCol="Item" hasEvidence={true} />
+                                                <SmartListOrMatrix text={cargoSelecionado.compTecnicas} titleCol="Competência" hasEvidence={true} />
                                             )}
                                         </section>
 
                                         <section>
-                                            <h3 className="text-lg font-black text-gray-800 border-b-2 border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                                                <i className="ph-fill ph-users text-emerald-600 text-2xl"></i> Comportamentais
+                                            <h3 className="text-xl font-extrabold text-cury-dark border-b-2 border-cury-blue/20 pb-2 mb-5 flex items-center gap-2">
+                                                <div className="p-1.5 bg-cury-purple/10 rounded-lg text-cury-purple"><i className="ph-bold ph-users"></i></div>
+                                                Competências Comportamentais
                                             </h3>
                                             {isEditing ? (
                                                 <EditableMatrix text={editedCargo.compComportamentais} titleCol="Comportamento" hasEvidence={true} evidenceOptions={['Experiência', 'Teste Comportamental', 'Entrevista']} onChange={(val) => setEditedCargo({...editedCargo, compComportamentais: val})} />
@@ -784,12 +837,11 @@
                                                 <SmartListOrMatrix text={cargoSelecionado.compComportamentais} titleCol="Comportamento" hasEvidence={true} />
                                             )}
                                         </section>
-                                    </div>
 
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 pt-4">
                                         <section>
-                                            <h3 className="text-lg font-black text-gray-800 border-b-2 border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                                                <i className="ph-fill ph-graduation-cap text-purple-600 text-2xl"></i> Formação Acadêmica
+                                            <h3 className="text-xl font-extrabold text-cury-dark border-b-2 border-cury-blue/20 pb-2 mb-5 flex items-center gap-2">
+                                                <div className="p-1.5 bg-cury-light/10 rounded-lg text-cury-light"><i className="ph-bold ph-graduation-cap"></i></div>
+                                                Formação Acadêmica
                                             </h3>
                                             {isEditing ? (
                                                 <EditableFixedMatrix text={editedCargo.formacao} titleCol="Exigência" onChange={(val) => setEditedCargo({...editedCargo, formacao: val})} />
@@ -799,8 +851,9 @@
                                         </section>
 
                                         <section>
-                                            <h3 className="text-lg font-black text-gray-800 border-b-2 border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                                                <i className="ph-fill ph-briefcase text-amber-600 text-2xl"></i> Experiência Profissional
+                                            <h3 className="text-xl font-extrabold text-cury-dark border-b-2 border-cury-blue/20 pb-2 mb-5 flex items-center gap-2">
+                                                <div className="p-1.5 bg-slate-200/50 rounded-lg text-slate-600"><i className="ph-bold ph-briefcase"></i></div>
+                                                Experiência Profissional
                                             </h3>
                                             {isEditing ? (
                                                 <EditableFixedMatrix text={editedCargo.experiencia} titleCol="Critério" onChange={(val) => setEditedCargo({...editedCargo, experiencia: val})} />
@@ -813,16 +866,30 @@
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full text-center flex-1">
-                                <div className="bg-white p-8 rounded-full mb-6 shadow-sm border border-gray-200">
-                                    <i className="ph-fill ph-map-trifold text-6xl text-blue-300"></i>
+                                <div className="bg-white p-8 rounded-full mb-6 shadow-md border border-slate-200">
+                                    <i className="ph-fill ph-map-trifold text-6xl text-cury-light"></i>
                                 </div>
-                                <h3 className="text-3xl font-black text-gray-800 mb-3 tracking-tight">Trilhas de Carreira</h3>
-                                <p className="text-gray-500 max-w-md text-base leading-relaxed">
-                                    Selecione um cargo no menu lateral para visualizar a matriz completa de responsabilidades para Junior, Pleno e Sênior em um só lugar.
+                                <h3 className="text-3xl font-extrabold text-cury-dark mb-4 tracking-tight">Trilhas de Carreira</h3>
+                                <p className="text-slate-600 max-w-lg text-lg leading-relaxed font-medium bg-white/60 p-5 rounded-xl border border-slate-200 shadow-sm">
+                                    Selecione um cargo no menu lateral para visualizar a matriz completa de responsabilidades e requisitos para Júnior, Pleno e Sênior em uma única tela.
                                 </p>
                             </div>
                         )}
                     </main>
+                    
+                    <footer className="bg-cury-dark text-white p-8 w-full border-t-4 border-cury-blue mt-auto">
+                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+                            <div className="space-y-3 w-full md:w-auto text-center md:text-left">
+                                <h4 class="font-extrabold text-xl">Dúvidas sobre os processos?</h4>
+                                <p class="text-cury-light text-sm font-medium">Fale com a gente: <strong><a href="mailto:treinamento@cury.net" class="hover:underline text-white">treinamento@cury.net</a></strong></p>
+                            </div>
+                            
+                            <div className="text-center md:text-right w-full md:w-auto border-t border-white/20 md:border-t-0 pt-4 md:pt-0">
+                                <p className="font-bold text-base">Cargos e Salários / Remuneração & DHO</p>
+                                <p className="mt-1 text-cury-light text-xs font-medium">Uso restrito e interno Cury Construtora</p>
+                            </div>
+                        </div>
+                    </footer>
                 </div>
             );
         }
