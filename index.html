@@ -35,7 +35,7 @@
         }
     </script>
     
-    <script defer src="/_vercel/insights/script.js"></script>
+    <script src="/_vercel/insights/script.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
     <style>
@@ -389,6 +389,7 @@
             const [isAuth, setIsAuth] = useState(false);
             const [loginEmail, setLoginEmail] = useState('');
             const [loginSenha, setLoginSenha] = useState('');
+            const [mostrarSenha, setMostrarSenha] = useState(false);
 
             const [isEditing, setIsEditing] = useState(false);
             const [editedCargo, setEditedCargo] = useState(null);
@@ -409,14 +410,29 @@
                     ]);
 
                     const parsedUsers = parseCSV(csvUsuarios);
-                    const usersMap = parsedUsers.map(u => ({
-                        nome: u[0] || '',
-                        email: (u[1] || '').trim().toLowerCase(),
-                        senha: (u[3] || '').trim(),
-                        diretoria: u[4] || '',
-                        departamento: u[5] || ''
-                    })).filter(u => u.email);
-                    setUsuarios(usersMap);
+                    const usersMap = {};
+                    
+                    parsedUsers.forEach(u => {
+                        const emailOriginal = (u[1] || '').trim().toLowerCase();
+                        if (!emailOriginal) return;
+                        
+                        if (!usersMap[emailOriginal]) {
+                            usersMap[emailOriginal] = {
+                                nome: u[0] || '',
+                                email: emailOriginal,
+                                senha: (u[3] || '').trim(),
+                                acessos: []
+                            };
+                        }
+                        
+                        const dir = (u[4] || '').trim();
+                        const dep = (u[5] || '').trim();
+                        if (dir && dep) {
+                            usersMap[emailOriginal].acessos.push({ diretoria: dir, departamento: dep });
+                        }
+                    });
+                    
+                    setUsuarios(Object.values(usersMap));
 
                     const parsedCargos = parseCSV(csvCargos);
                     const cargosMap = {};
@@ -478,8 +494,17 @@
                 const u = usuarios.find(user => normalizeString(user.email) === emailFormatado && user.senha === loginSenha.trim());
                 if (u) {
                     setIsAuth(u);
-                    setLoginEmail(''); setLoginSenha('');
-                    setPastasAbertas({ [u.diretoria]: true, [`${u.diretoria}|${u.departamento}`]: true });
+                    setLoginEmail(''); 
+                    setLoginSenha('');
+                    setMostrarSenha(false);
+                    
+                    const novasPastasAbertas = {};
+                    u.acessos.forEach(acesso => {
+                        if(acesso.diretoria) novasPastasAbertas[acesso.diretoria] = true;
+                        if(acesso.diretoria && acesso.departamento) novasPastasAbertas[`${acesso.diretoria}|${acesso.departamento}`] = true;
+                    });
+                    setPastasAbertas(prev => ({ ...prev, ...novasPastasAbertas }));
+                    
                     showToast("Acesso liberado com sucesso!", "success");
                 } else {
                     showToast("E-mail ou senha incorretos.", "error");
@@ -488,7 +513,10 @@
 
             const togglePasta = (idDaPasta) => setPastasAbertas(p => ({ ...p, [idDaPasta]: !p[idDaPasta] }));
 
-            const cargosFiltradosGestor = cargos.filter(c => isAuth && c.area === isAuth.diretoria && c.departamento === isAuth.departamento);
+            const cargosFiltradosGestor = cargos.filter(c => {
+                if (!isAuth) return false;
+                return isAuth.acessos.some(acesso => c.area === acesso.diretoria && c.departamento === acesso.departamento);
+            });
             
             const arvoreDeCargos = {};
             cargosFiltradosGestor.forEach(cargo => {
@@ -543,7 +571,12 @@
             const enviarRevisao = async () => {
                 setIsSubmitting(true);
                 const payload = {
-                    gestor: isAuth,
+                    gestor: {
+                        nome: isAuth.nome,
+                        email: isAuth.email,
+                        diretoria: cargoSelecionado.area,
+                        departamento: cargoSelecionado.departamento
+                    },
                     cargoReferencia: {
                         titulo: cargoSelecionado.titulo, cbo: cargoSelecionado.cbo,
                         codigo: cargoSelecionado.codigo, hierarquia: cargoSelecionado.hierarquia,
@@ -574,6 +607,8 @@
                 }
             };
 
+            const departamentosAcesso = isAuth ? isAuth.acessos.map(a => a.departamento).filter((v, i, a) => a.indexOf(v) === i).join(' / ') : '';
+
             return (
                 <div className="flex flex-col min-h-screen">
                     
@@ -602,7 +637,12 @@
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-cury-dark mb-1">Senha de Acesso</label>
-                                        <input type="password" value={loginSenha} onChange={e=>setLoginSenha(e.target.value)} className="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-cury-blue outline-none text-sm" placeholder="••••••••" required/>
+                                        <div className="relative">
+                                            <input type={mostrarSenha ? "text" : "password"} value={loginSenha} onChange={e=>setLoginSenha(e.target.value)} className="w-full border border-slate-300 p-3 pr-10 rounded-lg focus:ring-2 focus:ring-cury-blue outline-none text-sm" placeholder="••••••••" required/>
+                                            <button type="button" onClick={() => setMostrarSenha(!mostrarSenha)} className="absolute right-3 top-3.5 text-slate-400 hover:text-cury-blue transition-colors">
+                                                <i className={`ph-bold ${mostrarSenha ? 'ph-eye-slash' : 'ph-eye'} text-lg`}></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     <button type="submit" className="w-full bg-cury-blue hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-2 shadow-md">Desbloquear Ferramentas</button>
                                 </form>
@@ -612,7 +652,7 @@
                                         <div className="bg-cury-blue text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">{isAuth.nome.charAt(0)}</div>
                                         <div className="flex-1 overflow-hidden">
                                             <p className="font-bold text-sm text-cury-dark truncate">{isAuth.nome}</p>
-                                            <p className="text-xs text-slate-500 truncate">{isAuth.departamento}</p>
+                                            <p className="text-xs text-slate-500 truncate" title={departamentosAcesso}>{departamentosAcesso}</p>
                                         </div>
                                         <button onClick={() => { setIsAuth(false); setCargoSelecionado(null); }} className="text-slate-400 hover:text-cury-orange transition-colors"><i className="ph-bold ph-sign-out text-xl"></i></button>
                                     </div>
@@ -629,6 +669,7 @@
                                             {cargosFiltradosBusca.map(c => (
                                                 <button key={c.id} onClick={() => { setCargoSelecionado(c); setIsSidebarOpen(false); if(isEditing) cancelarEdicao(); }} className={`w-full text-left px-4 py-3 rounded-xl transition-colors border ${cargoSelecionado?.id === c.id ? 'bg-cury-blue/10 border-cury-blue text-cury-dark shadow-sm' : 'bg-white border-slate-200 hover:border-cury-light text-slate-700'}`}>
                                                     <p className="font-bold text-sm">{c.titulo}</p>
+                                                    <p className="text-xs text-slate-500 mt-1">{c.departamento}</p>
                                                 </button>
                                             ))}
                                         </div>
@@ -688,7 +729,7 @@
                                 <div>
                                     <h1 className="text-xl font-extrabold tracking-tight uppercase">Portal de Cargos</h1>
                                     <p className="text-xs text-cury-light font-medium hover:text-white transition-colors hover:underline">
-                                        <a href="mailto:remuneracao.rh@cury.net">Remuneração - RH</a>
+                                        <a href="mailto:remuneracao.rh@cury.net">Remuneração & DHO</a>
                                     </p>
                                 </div>
                             </div>
