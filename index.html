@@ -233,6 +233,11 @@
         const EditableMatrix = ({ text, onChange, titleCol, hasEvidence = false, evidenceOptions = [] }) => {
             const [rows, setRows] = useState([]);
 
+            const isChecked = (val) => {
+                const v = (val || '').toLowerCase().trim();
+                return v === 'x' || v === 'v' || v === 'sim';
+            };
+
             useEffect(() => {
                 if (!text) { setRows([]); return; }
                 const lines = text.split('\n').filter(l => l.trim() !== '');
@@ -249,7 +254,13 @@
                         evValue = matchedOptions.join(', ');
                     }
 
-                    return { item: p[0]||'', jr: p[1]||'', pl: p[2]||'', sr: p[3]||'', ev: evValue };
+                    return { 
+                        item: p[0]||'', 
+                        jr: isChecked(p[1]) ? 'Sim' : 'Não', 
+                        pl: isChecked(p[2]) ? 'Sim' : 'Não', 
+                        sr: isChecked(p[3]) ? 'Sim' : 'Não', 
+                        ev: evValue 
+                    };
                 });
                 setRows(parsed);
             }, [text]);
@@ -267,7 +278,7 @@
             };
 
             const addRow = () => {
-                const nr = [...rows, { item: '', jr: '', pl: '', sr: '', ev: '' }];
+                const nr = [...rows, { item: '', jr: 'Não', pl: 'Não', sr: 'Não', ev: '' }];
                 setRows(nr);
                 notifyChange(nr);
             };
@@ -278,13 +289,8 @@
                 notifyChange(nr);
             };
 
-            const isChecked = (val) => {
-                const v = val.toLowerCase().trim();
-                return v === 'x' || v === 'v' || v === 'sim';
-            };
-
             const handleCheck = (idx, field, currentVal) => {
-                updateRow(idx, field, isChecked(currentVal) ? '' : 'X');
+                updateRow(idx, field, isChecked(currentVal) ? 'Não' : 'Sim');
             };
 
             return (
@@ -395,7 +401,6 @@
             const [editedCargo, setEditedCargo] = useState(null);
             const [isSubmitting, setIsSubmitting] = useState(false);
 
-            // Variável de controle para o botão "Voltar ao Topo"
             const [showTopButton, setShowTopButton] = useState(false);
 
             const showToast = (msg, type = 'info') => {
@@ -403,7 +408,6 @@
                 setTimeout(() => setToast(null), 4000);
             };
 
-            // Efeito para monitorar a rolagem da página
             useEffect(() => {
                 const handleScroll = () => {
                     if (window.scrollY > 300) {
@@ -500,7 +504,6 @@
                         if (atualizado) setCargoSelecionado(atualizado);
                     }
 
-                    // Se não for o primeiro load, avisa que atualizou
                     if (!loading && cargos.length > 0) {
                         showToast("Base de dados atualizada!", "success");
                     }
