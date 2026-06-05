@@ -77,7 +77,7 @@
 
         const getCargosUrl = () => `https://docs.google.com/spreadsheets/d/e/2PACX-1vTzT1zE75lovKmkVKdlfrcWed-9MLz_234UGBso8WeCNJwP3rvpGJUaFkLmysIDUAqwZvE5xmMPwV3f/pub?output=csv&single=true&gid=0&t=${new Date().getTime()}`;
         const getUsuariosUrl = () => `https://docs.google.com/spreadsheets/d/e/2PACX-1vTzT1zE75lovKmkVKdlfrcWed-9MLz_234UGBso8WeCNJwP3rvpGJUaFkLmysIDUAqwZvE5xmMPwV3f/pub?output=csv&single=true&gid=1546332252&t=${new Date().getTime()}`;
-        const APPS_SCRIPT_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwxVPi3LTwALm5yEu32rMhsHwVwbK31eFO1aXQ9GufJIkmai05WXSOqwALFAzQOjj2eZw/exec';
+        const APPS_SCRIPT_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwrNAcNyArmP_4SUDkR01OqVtdfwcgkwSuTIDTXtzwC6NuxHeWM8brajmKn6yR0U3IhRA/exec';
 
         const fetchWithTimeout = async (url, ms = 15000) => {
             const ctrl = new AbortController();
@@ -620,7 +620,7 @@
                     await fetch(APPS_SCRIPT_WEBHOOK, {
                         method: 'POST',
                         mode: 'no-cors',
-                        headers: { 'Content-Type': 'text/plain' },
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify(payload)
                     });
                     showToast("Proposta enviada com sucesso para o RH!", "success");
@@ -957,7 +957,6 @@
                         </div>
                     </footer>
 
-                    {/* Botão Flutuante: Voltar ao Topo */}
                     <button 
                         onClick={scrollToTop}
                         className={`fixed bottom-6 right-6 z-50 bg-cury-dark text-white p-3 rounded-full shadow-2xl hover:bg-cury-blue hover:-translate-y-1 transition-all duration-300 ${showTopButton ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
