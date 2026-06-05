@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Cargos e Salários - Cury</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .sidebar-open { overflow: hidden; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const APPS_SCRIPT_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwrNAcNyArmP_4SUDkR01OqVtdfwcgkwSuTIDTXtzwC6NuxHeWM8brajmKn6yR0U3IhRA/exec';
+
+        const getCargosUrl = () => 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTzT1zE75lovKmkVKdlfrcWed-9MLz_234UGBso8WeCNJwP3rvpGJUaFkLmysIDUAqwZvE5xmMPwV3f/pub?output=csv&single=true&gid=0';
+        const getUsuariosUrl = () => 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTzT1zE75lovKmkVKdlfrcWed-9MLz_234UGBso8WeCNJwP3rvpGJUaFkLmysIDUAqwZvE5xmMPwV3f/pub?output=csv&single=true&gid=1546332252';
+
+        const fetchWithTimeout = async (baseUrl, ms) => {
+            const urlFormatada = encodeURIComponent(baseUrl + '&t=' + Date.now());
+            const ctrl = new AbortController();
+            const id = setTimeout(() => ctrl.abort(), ms);
+            try {
+                const result = await Promise.any([
+                    fetch(`https://corsproxy.io/?${urlFormatada}`, { signal: ctrl.signal }).then(r => r.ok ? r.text() : Promise.reject()),
+                    fetch(`https://api.allorigins.win/raw?url=${urlFormatada}`, { signal: ctrl.signal }).then(r => r.ok ? r.text() : Promise.reject()),
+                    fetch(`https://api.codetabs.com/v1/proxy?quest=${urlFormatada}`, { signal: ctrl.signal }).then(r => r.ok ? r.text() : Promise.reject())
+                ]);
+                clearTimeout(id);
+                return result;
+            } catch (e) {
+                clearTimeout(id);
+                throw new Error("Bloqueio de rede. O sistema de segurança da rede impediu a conexão com a planilha.");
+            }
+        };
+
+        const SmartListOrMatrix = ({ text, titleCol, defaultText = "Não cadastrado", hasEvidence = false }) => {
+            if (!text) return <p className="text-gray-500 italic text-sm">{defaultText}</p>;
+            
+            const lines = text.split('\n').filter(l => l.trim() !== '');
+            const isMatrix = lines.some(l => l.includes('|'));
+
+            if (!isMatrix) {
+                return (
+                    <ul className="list-disc pl-5 space-y-2 text-gray-600 text-sm marker:text-blue-400">
+                        {lines.map((item, i) => <li key={i} className="pl-1">{item}</li>)}
+                    </ul>
+                );
+            }
+
+            return (
+                <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm mt-2">
+                    <table className="w-full text-sm text-left border-collapse min-w-[500px]">
+                        <thead className="bg-gray-100/80 text-gray-700">
+                            <tr>
+                                <th className="p-3 border-b font-bold text-gray-700">{titleCol}</th>
+                                <th className="p-3 border-b text-center w-20 font-extrabold text-blue-900 border-l border-gray-200">JR</th>
+                                <th className="p-3 border-b text-center w-20 font-extrabold text-blue-900 border-l border-gray-200">PL</th>
+                                <th className="p-3 border-b text-center w-20 font-extrabold text-blue-900 border-l border-gray-200">SR</th>
+                                {hasEvidence && <th className="p-3 border-b font-bold text-gray-700 border-l border-gray-200 w-48">Evidência</th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {lines.map((line, idx) => {
+                                const parts = line.split('|').map(p => p.trim());
+                                const item = parts[0];
+                                const jr = parts[1] || '';
+                                const pl = parts[2] || '';
+                                const sr = parts[3] || '';
+                                const evidencia = parts[4] || '';
+                                
+                                const renderMark = (val) => {
+                                    const v = val.toLowerCase();
+                                    if (v === 'x' || v === 'v' || v === 'sim') {
+                                        return <div className="mx-auto w-6 h-6 bg-blue-100 text-blue-700 flex items-center justify-center rounded-md"><i className="ph-bold ph-check text-base"></i></div>;
+                                    }
+                                    if (v === '' || v === '-' || v === 'não' || v === 'nao') return null;
+                                    return <span className="text-gray-700 text-xs font-semibold px-2 py-1 bg-gray-100 rounded break-words block text-center leading-tight">{val}</span>;
+                                };
+
+                                return (
+                                    <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                                        <td className="p-3 text-gray-800 font-medium">{item}</td>
+                                        <td className="p-2 text-center align-middle border-l border-gray-100">{renderMark(jr)}</td>
+                                        <td className="p-2 text-center align-middle border-l border-gray-100">{renderMark(pl)}</td>
+                                        <td className="p-2 text-center align-middle border-l border-gray-100">{renderMark(sr)}</td>
+                                        {hasEvidence && (
+                                            <td className="p-3 text-gray-600 text-xs border-l border-gray-100">
+                                                {evidencia ? evidencia : null}
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+
+        const MultiSelectDropdown = ({ options, value, onChange }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            
+            // Transforma os acentos e deixa tudo minúsculo para comparar certo
+            const normalizeStr = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : '';
+            const selectedArray = value ? value.split(',').map(s => normalizeStr(s)).filter(Boolean) : [];
+
+            const toggleOption = (opt) => {
+                const optNorm = normalizeStr(opt);
+                let currentValues = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
+                
+                if (selectedArray.includes(optNorm)) {
+                    currentValues = currentValues.filter(item => normalizeStr(item) !== optNorm);
+                } else {
+                    currentValues.push(opt);
+                }
+                onChange(currentValues.join(', '));
+            };
+
+            return (
+                <div className="relative">
+                    <div onClick={() => setIsOpen(!isOpen)} className="w-full p-2 border border-gray-300 rounded text-xs outline-none bg-white cursor-pointer min-h-[34px] flex items-center justify-between">
+                        <span className="truncate block flex-1 text-left text-gray-700">{value || 'Selecione...'}</span>
+                        <i className="ph-bold ph-caret-down text-gray-400"></i>
+                    </div>
+                    {isOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
+                            <div className="absolute z-50 top-full mt-1 left-0 w-48 bg-white border border-gray-200 shadow-xl rounded-lg py-2">
+                                {options.map(opt => (
+                                    <label key={opt} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer text-xs text-gray-700">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedArray.includes(normalizeStr(opt))} 
+                                            onChange={() => toggleOption(opt)} 
+                                            className="mr-2 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                                        />
+                                        {opt}
+                                    </label>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        const EditableMatrix = ({ value, onChange, titleCol, hasEvidence = false, evidenceType = 'geral' }) => {
+            const [rows, setRows] = useState(() => {
+                if (!value) return [];
+                return value.split('\n').filter(l => l.trim() !== '').map(line => {
+                    const p = line.split('|').map(p => p.trim());
+                    return {
+                        item: p[0] || '',
+                        jr: (p[1] || '').toLowerCase() === 'x' || (p[1] || '').toLowerCase() === 'sim' || (p[1] || '').toLowerCase() === 'v',
+                        pl: (p[2] || '').toLowerCase() === 'x' || (p[2] || '').toLowerCase() === 'sim' || (p[2] || '').toLowerCase() === 'v',
+                        sr: (p[3] || '').toLowerCase() === 'x' || (p[3] || '').toLowerCase() === 'sim' || (p[3] || '').toLowerCase() === 'v',
+                        evidencia: p[4] || ''
+                    };
+                });
+            });
+
+            const updateParent = (newRows) => {
+                const text = newRows.map(r => `${r.item} | ${r.jr ? 'Sim' : ''} | ${r.pl ? 'Sim' : ''} | ${r.sr ? 'Sim' : ''} | ${r.evidencia || ''}`).join('\n');
+                onChange(text);
+            };
+
+            const handleRowChange = (index, field, val) => {
+                const newRows = [...rows];
+                newRows[index][field] = val;
+                setRows(newRows);
+                updateParent(newRows);
+            };
+
+            const addRow = () => {
+                const newRows = [...rows, { item: '', jr: false, pl: false, sr: false, evidencia: '' }];
+                setRows(newRows);
+                updateParent(newRows);
+            };
+
+            const removeRow = (index) => {
+                const newRows = rows.filter((_, i) => i !== index);
+                setRows(newRows);
+                updateParent(newRows);
+            };
+
+            const evOptions = evidenceType === 'comportamental' 
+                ? ['Experiência', 'Teste Comportamental', 'Entrevista']
+                : ['Certificado', 'Experiência', 'Teste', 'Entrevista'];
+
+            return (
+                <div className="overflow-x-auto rounded-lg border-2 border-blue-300 shadow-inner mt-2 bg-white">
+                    <table className="w-full text-sm text-left border-collapse min-w-[650px]">
+                        <thead className="bg-blue-50 text-blue-900">
+                            <tr>
+                                <th className="p-3 border-b border-blue-200 font-bold">{titleCol} (Editar)</th>
+                                <th className="p-3 border-b border-blue-200 text-center w-16 border-l border-blue-200">JR</th>
+                                <th className="p-3 border-b border-blue-200 text-center w-16 border-l border-blue-200">PL</th>
+                                <th className="p-3 border-b border-blue-200 text-center w-16 border-l border-blue-200">SR</th>
+                                {hasEvidence && <th className="p-3 border-b border-blue-200 text-center w-40 border-l border-blue-200">Evidência</th>}
+                                <th className="p-3 border-b border-blue-200 text-center w-12 border-l border-blue-200">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {rows.map((row, idx) => (
+                                <tr key={idx} className="hover:bg-gray-50">
+                                    <td className="p-2 border-r border-gray-100">
+                                        <input type="text" value={row.item} onChange={e => handleRowChange(idx, 'item', e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="Digite a atividade/competência..." />
+                                    </td>
+                                    <td className="p-2 text-center border-r border-gray-100">
+                                        <input type="checkbox" checked={row.jr} onChange={e => handleRowChange(idx, 'jr', e.target.checked)} className="w-5 h-5 text-blue-600 rounded cursor-pointer" />
+                                    </td>
+                                    <td className="p-2 text-center border-r border-gray-100">
+                                        <input type="checkbox" checked={row.pl} onChange={e => handleRowChange(idx, 'pl', e.target.checked)} className="w-5 h-5 text-blue-600 rounded cursor-pointer" />
+                                    </td>
+                                    <td className="p-2 text-center border-r border-gray-100">
+                                        <input type="checkbox" checked={row.sr} onChange={e => handleRowChange(idx, 'sr', e.target.checked)} className="w-5 h-5 text-blue-600 rounded cursor-pointer" />
+                                    </td>
+                                    {hasEvidence && (
+                                        <td className="p-2 border-r border-gray-100">
+                                            <MultiSelectDropdown 
+                                                options={evOptions} 
+                                                value={row.evidencia} 
+                                                onChange={val => handleRowChange(idx, 'evidencia', val)} 
+                                            />
+                                        </td>
+                                    )}
+                                    <td className="p-2 text-center">
+                                        <button onClick={() => removeRow(idx)} className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition">
+                                            <i className="ph-bold ph-trash text-lg"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <div className="p-3 bg-gray-50 border-t border-gray-200">
+                        <button onClick={addRow} className="flex items-center gap-2 text-blue-600 font-bold hover:text-blue-800 text-sm px-3 py-1.5 hover:bg-blue-100 rounded transition">
+                            <i className="ph-bold ph-plus-circle text-lg"></i> Adicionar Nova Linha
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const EditableFixedMatrix = ({ value, onChange, titleCol, defaultItems }) => {
+            const [rows, setRows] = useState(() => {
+                let parsed = [];
+                if (value) {
+                    parsed = value.split('\n').filter(l => l.trim() !== '').map(line => {
+                        const p = line.split('|').map(x => x.trim());
+                        return { item: p[0] || '', jr: p[1] || '', pl: p[2] || '', sr: p[3] || '' };
+                    });
+                }
+                
+                return defaultItems.map((defItem) => {
+                    const existing = parsed.find(p => p.item.toLowerCase().includes(defItem.toLowerCase()));
+                    return {
+                        item: defItem,
+                        jr: existing ? existing.jr : '',
+                        pl: existing ? existing.pl : '',
+                        sr: existing ? existing.sr : ''
+                    };
+                });
+            });
+
+            const updateParent = (newRows) => {
+                const text = newRows.map(r => `${r.item} | ${r.jr} | ${r.pl} | ${r.sr}`).join('\n');
+                onChange(text);
+            };
+
+            const handleRowChange = (index, field, val) => {
+                const newRows = [...rows];
+                newRows[index][field] = val;
+                setRows(newRows);
+                updateParent(newRows);
+            };
+
+            return (
+                <div className="overflow-x-auto rounded-lg border-2 border-indigo-300 shadow-inner mt-2 bg-white">
+                    <table className="w-full text-sm text-left border-collapse min-w-[650px]">
+                        <thead className="bg-indigo-50 text-indigo-900">
+                            <tr>
+                                <th className="p-3 border-b border-indigo-200 font-bold">{titleCol} (Fixo)</th>
+                                <th className="p-3 border-b border-indigo-200 text-center w-1/4 border-l border-indigo-200">JR</th>
+                                <th className="p-3 border-b border-indigo-200 text-center w-1/4 border-l border-indigo-200">PL</th>
+                                <th className="p-3 border-b border-indigo-200 text-center w-1/4 border-l border-indigo-200">SR</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {rows.map((row, idx) => (
+                                <tr key={idx} className="hover:bg-gray-50">
+                                    <td className="p-3 border-r border-gray-100 font-bold text-gray-700 bg-gray-50/50 w-1/4 align-middle">
+                                        {row.item}
+                                    </td>
+                                    <td className="p-1 border-r border-gray-100 align-top">
+                                        <textarea rows="3" value={row.jr} onChange={e => handleRowChange(idx, 'jr', e.target.value)} className="w-full h-full p-2 border-0 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none text-xs resize-none placeholder-gray-400" placeholder="Descreva aqui..."></textarea>
+                                    </td>
+                                    <td className="p-1 border-r border-gray-100 align-top">
+                                        <textarea rows="3" value={row.pl} onChange={e => handleRowChange(idx, 'pl', e.target.value)} className="w-full h-full p-2 border-0 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none text-xs resize-none placeholder-gray-400" placeholder="Descreva aqui..."></textarea>
+                                    </td>
+                                    <td className="p-1 border-r border-gray-100 align-top">
+                                        <textarea rows="3" value={row.sr} onChange={e => handleRowChange(idx, 'sr', e.target.value)} className="w-full h-full p-2 border-0 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none text-xs resize-none placeholder-gray-400" placeholder="Descreva aqui..."></textarea>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+
+        function PortalApp() {
+            const [cargos, setCargos] = useState([]);
+            const [usuarios, setUsuarios] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [erro, setErro] = useState(null);
+            
+            const [cargoSelecionado, setCargoSelecionado] = useState(null);
+            const [termoBusca, setTermoBusca] = useState('');
+            const [pastasAbertas, setPastasAbertas] = useState({});
+            const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+            const [loggedUser, setLoggedUser] = useState(null);
+            const [loginEmail, setLoginEmail] = useState('');
+            const [loginSenha, setLoginSenha] = useState('');
+            const [erroLogin, setErroLogin] = useState('');
+
+            // ESTADOS DO MODO REVISÃO
+            const [isEditing, setIsEditing] = useState(false);
+            const [draftCargo, setDraftCargo] = useState(null);
+            const [enviandoRevisao, setEnviarRevisao] = useState(false);
+
+            useEffect(() => {
+                if (isSidebarOpen && window.innerWidth < 768) document.body.classList.add('sidebar-open');
+                else document.body.classList.remove('sidebar-open');
+            }, [isSidebarOpen]);
+
+            // Reseta a edição se trocar de cargo
+            useEffect(() => {
+                setIsEditing(false);
+                setDraftCargo(null);
+            }, [cargoSelecionado]);
+
+            const buscarDados = async () => {
+                setLoading(true);
+                setErro(null);
+                try {
+                    const [cargosText, usersText] = await Promise.all([
+                        fetchWithTimeout(getCargosUrl(), 15000),
+                        fetchWithTimeout(getUsuariosUrl(), 15000)
+                    ]);
+                    
+                    // CARREGA USUÁRIOS
+                    const uLines = usersText.split(/\r?\n/);
+                    const uDelimiter = uLines[0].includes(';') ? ';' : ',';
+                    const uHeaders = uLines[0].split(uDelimiter).map(h => h.replace(/(^"|"$)/g, '').trim().toUpperCase());
+                    
+                    const idxNome = uHeaders.findIndex(h => h.includes('NOME'));
+                    const idxEmail = uHeaders.findIndex(h => h.includes('E-MAIL') || h.includes('EMAIL'));
+                    const idxSenha = uHeaders.findIndex(h => h.includes('SENHA'));
+                    const idxDir = uHeaders.findIndex(h => h.includes('DIRETORIA'));
+                    const idxDep = uHeaders.findIndex(h => h.includes('DEPARTAMENTO'));
+
+                    const usuariosFormatados = [];
+                    for (let i = 1; i < uLines.length; i++) {
+                        if (!uLines[i].trim()) continue;
+                        const uRegex = new RegExp(`(?:^|${uDelimiter})("(?:[^"]+|"")*"|[^${uDelimiter}]*)`, 'g');
+                        let uVals = [];
+                        let match;
+                        while ((match = uRegex.exec(uLines[i])) !== null) {
+                            if (match.index === uRegex.lastIndex) uRegex.lastIndex++; 
+                            uVals.push(match[1].replace(/(^"|"$)/g, '').replace(/""/g, '"').trim());
+                        }
+                        if (uVals[idxEmail]) {
+                            usuariosFormatados.push({
+                                nome: uVals[idxNome] || 'Gestor',
+                                email: uVals[idxEmail].toLowerCase(),
+                                senha: uVals[idxSenha] || '',
+                                diretoria: uVals[idxDir] || '',
+                                departamento: uVals[idxDep] || ''
+                            });
+                        }
+                    }
+                    setUsuarios(usuariosFormatados);
+
+                    // CARREGA CARGOS
+                    const lines = cargosText.split(/\r?\n/);
+                    if (lines.length < 2) throw new Error("Planilha de cargos vazia");
+
+                    const delimiter = lines[0].includes(';') ? ';' : ',';
+                    const cargosMap = {};
+
+                    for (let i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+                        const regex = new RegExp(`(?:^|${delimiter})("(?:[^"]+|"")*"|[^${delimiter}]*)`, 'g');
+                        let values = [];
+                        let match;
+                        while ((match = regex.exec(lines[i])) !== null) {
+                            if (match.index === regex.lastIndex) regex.lastIndex++; 
+                            values.push(match[1].replace(/(^"|"$)/g, '').replace(/""/g, '"').trim());
+                        }
+
+                        const areaStr = values[0] || 'Geral';
+                        const deptoStr = values[1] || 'Geral';
+                        const titulo = values[2] || '';
+                        if (!titulo) continue;
+
+                        const chaveUnica = `${areaStr}_${deptoStr}_${titulo}`;
+
+                        if (!cargosMap[chaveUnica]) {
+                            cargosMap[chaveUnica] = {
+                                id: chaveUnica,
+                                area: areaStr,
+                                departamento: deptoStr,
+                                titulo: titulo,
+                                cbo: values[3] || '',
+                                codigo: values[4] || '',
+                                hierarquia: values[5] || '',
+                                missao: values[6] || '',
+                                escopo: '',
+                                compTecnicas: '',
+                                compComportamentais: '',
+                                experiencia: '',
+                                formacao: ''
+                            };
+                        } else {
+                            if (values[3] && !cargosMap[chaveUnica].cbo) cargosMap[chaveUnica].cbo = values[3];
+                            if (values[4] && !cargosMap[chaveUnica].codigo) cargosMap[chaveUnica].codigo = values[4];
+                            if (values[5] && !cargosMap[chaveUnica].hierarquia) cargosMap[chaveUnica].hierarquia = values[5];
+                            if (values[6] && !cargosMap[chaveUnica].missao) cargosMap[chaveUnica].missao = values[6];
+                        }
+
+                        const categoria = (values[7] || '').toLowerCase().trim();
+                        const item = (values[8] || '').trim();
+                        const jr = (values[9] || '').trim();
+                        const pl = (values[10] || '').trim();
+                        const sr = (values[11] || '').trim();
+                        const evidencia = (values[12] || '').trim();
+
+                        if (categoria && item) {
+                            const linhaMatriz = `${item} | ${jr} | ${pl} | ${sr} | ${evidencia}\n`;
+                            
+                            if (categoria.includes('escopo') || categoria.includes('responsabilidade')) cargosMap[chaveUnica].escopo += linhaMatriz;
+                            else if (categoria.includes('técnica') || categoria.includes('tecnica')) cargosMap[chaveUnica].compTecnicas += linhaMatriz;
+                            else if (categoria.includes('comportamental') || categoria.includes('comportamento')) cargosMap[chaveUnica].compComportamentais += linhaMatriz;
+                            else if (categoria.includes('experiência') || categoria.includes('experiencia')) cargosMap[chaveUnica].experiencia += linhaMatriz;
+                            else if (categoria.includes('formação') || categoria.includes('formacao')) cargosMap[chaveUnica].formacao += linhaMatriz;
+                            else cargosMap[chaveUnica].escopo += linhaMatriz;
+                        }
+                    }
+
+                    const cargosFormatados = Object.values(cargosMap);
+                    cargosFormatados.sort((a, b) => a.titulo.localeCompare(b.titulo));
+                    setCargos(cargosFormatados);
+                    
+                    if (cargoSelecionado) {
+                        const atualizado = cargosFormatados.find(c => c.id === cargoSelecionado.id);
+                        if (atualizado) setCargoSelecionado(atualizado);
+                    }
+                } catch (error) {
+                    console.error("Erro na leitura:", error);
+                    setErro(`Falha de conexão: ${error.message}`);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => { buscarDados(); }, []);
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                setErroLogin('');
+                const user = usuarios.find(u => u.email === loginEmail.toLowerCase().trim() && u.senha === loginSenha.trim());
+                if (user) {
+                    setLoggedUser(user);
+                    setLoginEmail('');
+                    setLoginSenha('');
+                    setPastasAbertas({
+                        [user.diretoria]: true,
+                        [`${user.diretoria}|${user.departamento}`]: true
+                    });
+                } else {
+                    setErroLogin('E-mail ou senha incorretos.');
+                }
+            };
+
+            const handleLogout = () => {
+                setLoggedUser(null);
+                setCargoSelecionado(null);
+                setIsSidebarOpen(false);
+                setIsEditing(false);
+            };
+
+            const iniciarRevisao = () => {
+                setDraftCargo(JSON.parse(JSON.stringify(cargoSelecionado)));
+                setIsEditing(true);
+            };
+
+            const cancelarRevisao = () => {
+                if (window.confirm("Deseja realmente cancelar as edições? Todas as propostas de mudança serão perdidas.")) {
+                    setIsEditing(false);
+                    setDraftCargo(null);
+                }
+            };
+
+            const enviarRevisao = async () => {
+                if (!APPS_SCRIPT_WEBHOOK.includes('script.google.com')) {
+                    alert("O Link do Apps Script ainda não foi configurado no código fonte do Portal.");
+                    return;
+                }
+                
+                setEnviarRevisao(true);
+
+                // Função interna que compara o original com o novo linha a linha
+                const buildPayloadRows = (origStr, newStr, categoria) => {
+                    const parse = (str) => (str || '').split('\n').filter(l=>l.trim() !== '').map(l => l.split('|').map(p=>p.trim()));
+                    const origLines = parse(origStr);
+                    const newLines = parse(newStr);
+                    const max = Math.max(origLines.length, newLines.length);
+                    const rows = [];
+                    
+                    for(let i = 0; i < max; i++) {
+                        const o = origLines[i] || ['', '', '', '', ''];
+                        const n = newLines[i] || ['', '', '', '', ''];
+                        rows.push({
+                            categoria: categoria,
+                            descOrig: o[0]||'', descNovo: n[0]||'',
+                            jrOrig: o[1]||'', jrNovo: n[1]||'',
+                            plOrig: o[2]||'', plNovo: n[2]||'',
+                            srOrig: o[3]||'', srNovo: n[3]||'',
+                            evOrig: o[4]||'', evNovo: n[4]||''
+                        });
+                    }
+                    return rows;
+                };
+
+                // Monta a lista completa de modificações separadas por categoria
+                const linhasTransformadas = [
+                    ...buildPayloadRows(cargoSelecionado.escopo, draftCargo.escopo, 'Escopo'),
+                    ...buildPayloadRows(cargoSelecionado.compTecnicas, draftCargo.compTecnicas, 'Técnica'),
+                    ...buildPayloadRows(cargoSelecionado.compComportamentais, draftCargo.compComportamentais, 'Comportamental'),
+                    ...buildPayloadRows(cargoSelecionado.experiencia, draftCargo.experiencia, 'Experiência'),
+                    ...buildPayloadRows(cargoSelecionado.formacao, draftCargo.formacao, 'Formação')
+                ];
+
+                const payload = {
+                    gestor: loggedUser,
+                    cargoReferencia: { 
+                        titulo: cargoSelecionado.titulo, 
+                        codigo: cargoSelecionado.codigo,
+                        cbo: cargoSelecionado.cbo,
+                        hierarquia: cargoSelecionado.hierarquia,
+                        missaoOrig: cargoSelecionado.missao,
+                        missaoNova: draftCargo.missao
+                    },
+                    linhas: linhasTransformadas
+                };
+
+                try {
+                    await fetch(APPS_SCRIPT_WEBHOOK, {
+                        method: 'POST',
+                        mode: 'no-cors', // Fundamental para não ser bloqueado pelo Google
+                        headers: { 
+                            'Content-Type': 'text/plain;charset=utf-8' // Força o envio como texto para passar no bloqueio de segurança
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    alert("Revisão enviada com sucesso para a equipe de Remuneração!");
+                    setIsEditing(false);
+                    setDraftCargo(null);
+                } catch (e) {
+                    console.error(e);
+                    alert("Houve um erro na comunicação com a base de dados. Tente novamente.");
+                } finally {
+                    setEnviarRevisao(false);
+                }
+            };
+
+            const cargosVisiveis = cargos.filter(c => {
+                if (!loggedUser) return false;
+                return c.area.toUpperCase() === loggedUser.diretoria.toUpperCase() && 
+                       c.departamento.toUpperCase() === loggedUser.departamento.toUpperCase();
+            });
+
+            const arvoreDeCargos = {};
+            cargosVisiveis.forEach(cargo => {
+                if (!arvoreDeCargos[cargo.area]) arvoreDeCargos[cargo.area] = {};
+                if (!arvoreDeCargos[cargo.area][cargo.departamento]) arvoreDeCargos[cargo.area][cargo.departamento] = [];
+                arvoreDeCargos[cargo.area][cargo.departamento].push(cargo);
+            });
+
+            const togglePasta = (idDaPasta) => setPastasAbertas(prev => ({ ...prev, [idDaPasta]: !prev[idDaPasta] }));
+            const cargosFiltradosBusca = termoBusca ? cargosVisiveis.filter(cargo => cargo.titulo.toLowerCase().includes(termoBusca.toLowerCase())) : [];
+
+            return (
+                <div className="min-h-screen bg-gray-100 flex flex-col font-sans relative">
+                    {/* NOVO CABEÇALHO COM BOTÕES DE AÇÃO REESTRUTURADOS */}
+                    <header className="bg-blue-900 text-white shadow-md z-20 relative">
+                        <div className="max-w-[1400px] mx-auto px-4 py-4 flex justify-between items-center">
+                            <div className="flex items-center gap-4 sm:gap-6">
+                                <button onClick={() => setIsSidebarOpen(true)} className="px-3 py-2 sm:px-4 sm:py-2 rounded-md flex items-center gap-2 text-sm font-bold bg-white text-blue-900 hover:bg-gray-100 transition-colors shadow-sm">
+                                    <i className="ph-bold ph-list text-xl"></i>
+                                    <span className="hidden sm:inline">Menu de Cargos</span>
+                                </button>
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-white p-2 rounded text-blue-900 flex items-center justify-center hidden sm:flex">
+                                        <i className="ph-fill ph-buildings text-2xl"></i>
+                                    </div>
+                                    <div>
+                                        <h1 className="text-xl font-bold tracking-tight">Cargos & Salários</h1>
+                                        <p className="text-blue-200 text-sm hidden sm:block">Descritivos e Estrutura</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-3">
+                                {isEditing ? (
+                                    <>
+                                        <button onClick={cancelarRevisao} className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md font-bold text-sm flex items-center gap-2 transition-colors shadow-sm">
+                                            <i className="ph-bold ph-x text-lg"></i>
+                                            <span className="hidden sm:inline">Cancelar Edição</span>
+                                        </button>
+                                        <button onClick={enviarRevisao} disabled={enviandoRevisao} className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md font-bold text-sm flex items-center gap-2 transition-colors shadow-sm disabled:opacity-50">
+                                            <i className={`ph-bold ${enviandoRevisao ? 'ph-spinner animate-spin' : 'ph-paper-plane-right'} text-lg`}></i>
+                                            <span className="hidden sm:inline">{enviandoRevisao ? 'Enviando...' : 'Enviar para o RH'}</span>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button onClick={buscarDados} className="p-2 sm:px-4 sm:py-2 rounded-md flex items-center gap-2 text-sm font-medium bg-blue-800 text-white hover:bg-blue-700 transition-colors">
+                                        <i className={`ph-bold ph-arrows-clockwise text-xl sm:text-base ${loading ? 'animate-spin' : ''}`}></i>
+                                        <span className="hidden sm:inline">Atualizar</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className={`fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)}></div>
+
+                    <aside className={`fixed top-0 left-0 h-full w-full sm:w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                        <div className="bg-blue-900 p-5 text-white flex justify-between items-center border-b border-blue-800">
+                            <h2 className="font-bold text-lg flex items-center gap-2"><i className="ph-bold ph-user-circle"></i> Área do Gestor</h2>
+                            <button onClick={() => setIsSidebarOpen(false)} className="text-blue-200 hover:text-white transition-colors p-1"><i className="ph-bold ph-x text-2xl"></i></button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto bg-gray-50 flex flex-col">
+                            {!loggedUser ? (
+                                <div className="p-6 flex flex-col justify-center h-full animate-fade-in">
+                                    <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i className="ph-fill ph-lock-key text-3xl text-blue-700"></i>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-center text-gray-800 mb-2">Acesso Restrito</h3>
+                                    <p className="text-center text-gray-500 text-sm mb-6">Utilize suas credenciais enviadas por e-mail para visualizar as trilhas de carreira da sua equipe.</p>
+                                    {erroLogin && <div className="bg-red-50 text-red-600 text-sm font-semibold p-3 rounded-lg mb-4 text-center border border-red-100">{erroLogin}</div>}
+                                    <form onSubmit={handleLogin} className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">E-mail Corporativo</label>
+                                            <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="gestor@cury.net" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Senha</label>
+                                            <input type="password" value={loginSenha} onChange={e => setLoginSenha(e.target.value)} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••" />
+                                        </div>
+                                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-md flex justify-center items-center gap-2">
+                                            Entrar no Sistema <i className="ph-bold ph-arrow-right"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col h-full animate-fade-in">
+                                    <div className="p-5 bg-white border-b border-gray-200">
+                                        <p className="text-xs font-bold text-blue-600 uppercase mb-1">Logado como</p>
+                                        <h3 className="font-bold text-gray-800 text-lg truncate">{loggedUser.nome}</h3>
+                                        <p className="text-xs text-gray-500 mt-1 truncate">{loggedUser.diretoria} • {loggedUser.departamento}</p>
+                                        <button onClick={handleLogout} className="mt-3 w-full border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold py-2 rounded transition-colors flex items-center justify-center gap-2">
+                                            <i className="ph-bold ph-sign-out"></i> Sair da Conta
+                                        </button>
+                                    </div>
+                                    <div className="p-4 border-b border-gray-200 bg-white">
+                                        <div className="relative">
+                                            <i className="ph-bold ph-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-lg"></i>
+                                            <input type="text" placeholder="Buscar cargo..." className="w-full pl-9 pr-3 py-2 bg-gray-100 border border-transparent rounded focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all" value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-3 bg-gray-50">
+                                        {termoBusca ? (
+                                            <div className="space-y-1">
+                                                {cargosFiltradosBusca.length === 0 ? (
+                                                    <p className="text-gray-500 text-sm text-center py-4">Nenhum cargo encontrado.</p>
+                                                ) : (
+                                                    cargosFiltradosBusca.map(cargo => (
+                                                        <button key={`busca-${cargo.id}`} onClick={() => { setCargoSelecionado(cargo); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full text-left px-3 py-2.5 rounded transition-colors border-l-4 ${cargoSelecionado?.id === cargo.id ? 'bg-blue-100 border-blue-600 text-blue-900' : 'bg-white border-transparent text-gray-700 hover:bg-gray-200 shadow-sm'}`}>
+                                                            <p className="font-semibold text-sm truncate">{cargo.titulo}</p>
+                                                        </button>
+                                                    ))
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {cargosVisiveis.length === 0 ? (
+                                                    <p className="text-gray-500 text-sm text-center py-4">Nenhum cargo mapeado para a sua área no momento.</p>
+                                                ) : (
+                                                    Object.keys(arvoreDeCargos).sort().map(area => {
+                                                        const isAreaAberta = pastasAbertas[area];
+                                                        return (
+                                                            <div key={area} className="mb-1">
+                                                                <button onClick={() => togglePasta(area)} className="w-full flex items-center gap-2 px-2 py-2 hover:bg-blue-100 rounded transition-colors text-left group">
+                                                                    <span className="text-blue-600 transition-colors">{isAreaAberta ? <i className="ph-fill ph-folder-open text-lg"></i> : <i className="ph-fill ph-folder text-lg"></i>}</span>
+                                                                    <span className="font-bold text-sm text-gray-800 flex-1 truncate">{area}</span>
+                                                                    <span className="text-gray-400 group-hover:text-blue-600">{isAreaAberta ? <i className="ph-bold ph-caret-down text-xs"></i> : <i className="ph-bold ph-caret-right text-xs"></i>}</span>
+                                                                </button>
+                                                                {isAreaAberta && (
+                                                                    <div className="ml-4 pl-2 border-l-2 border-blue-200/50 mt-1 space-y-1">
+                                                                        {Object.keys(arvoreDeCargos[area]).sort().map(dept => {
+                                                                            const idDept = `${area}|${dept}`;
+                                                                            const isDeptAberto = pastasAbertas[idDept];
+                                                                            return (
+                                                                                <div key={idDept}>
+                                                                                    <button onClick={() => togglePasta(idDept)} className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-gray-200 rounded transition-colors text-left group">
+                                                                                        <span className="text-blue-400 transition-colors">{isDeptAberto ? <i className="ph-fill ph-folder-open text-base"></i> : <i className="ph-fill ph-folder text-base"></i>}</span>
+                                                                                        <span className="font-semibold text-sm text-gray-700 flex-1 truncate">{dept}</span>
+                                                                                        <span className="text-gray-300">{isDeptAberto ? <i className="ph-bold ph-caret-down text-xs"></i> : <i className="ph-bold ph-caret-right text-xs"></i>}</span>
+                                                                                    </button>
+                                                                                    {isDeptAberto && (
+                                                                                        <div className="ml-3 pl-2 border-l border-gray-300 mt-1 space-y-1 mb-2">
+                                                                                            {arvoreDeCargos[area][dept].map(cargo => (
+                                                                                                <button key={cargo.id} onClick={() => { setCargoSelecionado(cargo); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors ${cargoSelecionado?.id === cargo.id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>
+                                                                                                    <i className={`ph-fill ph-briefcase text-sm flex-shrink-0 ${cargoSelecionado?.id === cargo.id ? "text-blue-200" : "text-gray-400"}`}></i>
+                                                                                                    <span className={`text-sm truncate ${cargoSelecionado?.id === cargo.id ? 'font-medium' : ''}`}>{cargo.titulo}</span>
+                                                                                                </button>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )
+                                                                        })}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    })
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </aside>
+
+                    <main className="flex-1 w-full mx-auto px-4 py-6 flex flex-col h-full bg-gray-100 max-w-[1400px]">
+                        {loading ? (
+                            <div className="flex-1 flex flex-col items-center justify-center">
+                                <i className="ph-bold ph-spinner text-5xl text-blue-600 animate-spin mb-4"></i>
+                                <h2 className="text-xl font-semibold text-gray-700">Verificando banco de dados...</h2>
+                            </div>
+                        ) : erro ? (
+                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                                <div className="bg-red-50 p-6 rounded-2xl max-w-lg border border-red-100">
+                                    <i className="ph-fill ph-warning-circle text-5xl text-red-500 mx-auto mb-4"></i>
+                                    <h2 className="text-xl font-bold text-gray-800 mb-2">Erro de Conexão</h2>
+                                    <p className="text-gray-600">{erro}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex h-full flex-1">
+                                <div className="w-full bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col relative">
+                                    {!loggedUser ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-center p-8 flex-1 bg-gradient-to-b from-gray-50 to-gray-100">
+                                            <div className="bg-white p-6 rounded-full mb-6 shadow-sm border border-gray-200 relative">
+                                                <i className="ph-fill ph-lock-key text-5xl text-blue-400"></i>
+                                                <div className="absolute top-0 right-0 bg-green-500 w-4 h-4 rounded-full border-2 border-white animate-pulse"></div>
+                                            </div>
+                                            <h3 className="text-3xl font-extrabold text-gray-800 mb-4">Olá, Gestor(a)!</h3>
+                                            <p className="text-gray-600 max-w-lg text-lg leading-relaxed mb-8">
+                                                Para acessar os descritivos e trilhas de carreira da sua equipe, abra o <strong>Menu de Cargos</strong> no topo da tela e faça login com as informações recebidas por e-mail.
+                                            </p>
+                                            <button onClick={() => setIsSidebarOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform transform hover:scale-105 flex items-center gap-2 text-lg">
+                                                <i className="ph-bold ph-list"></i> Abrir Menu Lateral
+                                            </button>
+                                        </div>
+                                    ) : !cargoSelecionado ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-center p-8 flex-1 bg-gray-50/50">
+                                            <div className="bg-white p-6 rounded-full mb-6 shadow-sm border border-gray-200">
+                                                <i className="ph-fill ph-check-square-offset text-5xl text-blue-300"></i>
+                                            </div>
+                                            <h3 className="text-2xl font-bold text-gray-800 mb-3">Tudo pronto, {loggedUser.nome.split(' ')[0]}!</h3>
+                                            <p className="text-gray-500 max-w-md text-base leading-relaxed">
+                                                No menu lateral (à esquerda) você encontrará todos os cargos mapeados exclusivamente para a sua diretoria ({loggedUser.diretoria}). Clique em um deles para visualizar as matrizes e responsabilidades.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`p-6 md:p-8 border-b border-gray-200 text-white relative overflow-hidden flex flex-col sm:flex-row justify-between items-start gap-4 transition-colors ${isEditing ? 'bg-gradient-to-br from-indigo-900 to-indigo-700' : 'bg-gradient-to-br from-blue-900 to-blue-800'}`}>
+                                                <div className="absolute top-0 right-0 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
+                                                    <i className="ph-fill ph-buildings text-[200px]"></i>
+                                                </div>
+                                                
+                                                <div className="relative z-10 flex-1">
+                                                    {isEditing && (
+                                                        <div className="inline-flex items-center gap-2 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xs font-black mb-4 uppercase tracking-widest shadow-md">
+                                                            <i className="ph-bold ph-pencil-simple"></i> Modo de Edição
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-center gap-2 text-xs font-semibold text-blue-200 mb-4 uppercase tracking-wider">
+                                                        <span>{cargoSelecionado.area}</span>
+                                                        <i className="ph-bold ph-caret-right text-xs"></i>
+                                                        <span>{cargoSelecionado.departamento}</span>
+                                                    </div>
+                                                    <h2 className="text-3xl font-bold mb-3">{cargoSelecionado.titulo}</h2>
+                                                    
+                                                    <div className="flex flex-wrap gap-3 mt-2">
+                                                        {cargoSelecionado.cbo && (
+                                                            <span className="bg-black/20 border border-white/10 px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1">
+                                                                <span className="text-blue-300">CBO:</span> {cargoSelecionado.cbo}
+                                                            </span>
+                                                        )}
+                                                        {cargoSelecionado.codigo && (
+                                                            <span className="bg-black/20 border border-white/10 px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1">
+                                                                <span className="text-blue-300">CÓD:</span> {cargoSelecionado.codigo}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
+                                                {!isEditing && (
+                                                    <button onClick={iniciarRevisao} className="relative z-10 bg-white text-blue-900 hover:bg-blue-50 px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-transform transform hover:scale-105 whitespace-nowrap">
+                                                        <i className="ph-bold ph-pencil-simple text-lg"></i> Solicitar Revisão
+                                                    </button>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="p-6 md:p-8 space-y-8 overflow-y-auto flex-1 bg-gray-50/30 pb-8">
+                                                {cargoSelecionado.hierarquia && (
+                                                    <section className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+                                                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                                            <i className="ph-fill ph-tree-structure text-base text-gray-400"></i> Estrutura Hierárquica
+                                                        </h3>
+                                                        <p className="text-blue-900 font-medium text-sm">
+                                                            {cargoSelecionado.hierarquia}
+                                                        </p>
+                                                    </section>
+                                                )}
+
+                                                <section className={`bg-white p-6 rounded-xl border shadow-sm ${isEditing ? 'border-indigo-300 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
+                                                    <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-4 flex items-center gap-2">
+                                                        <i className="ph-fill ph-target text-xl text-red-500"></i> Missão do Cargo
+                                                    </h3>
+                                                    {isEditing ? (
+                                                        <textarea value={draftCargo.missao} onChange={e => setDraftCargo({...draftCargo, missao: e.target.value})} rows={3} className="w-full p-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-gray-700 bg-indigo-50/30"></textarea>
+                                                    ) : (
+                                                        <p className="text-gray-600 leading-relaxed font-medium">{cargoSelecionado.missao || "Missão não cadastrada."}</p>
+                                                    )}
+                                                </section>
+
+                                                <section className={`bg-white p-6 rounded-xl border shadow-sm ${isEditing ? 'border-indigo-300 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
+                                                    <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-4 flex items-center gap-2">
+                                                        <i className="ph-fill ph-list-checks text-xl text-blue-600"></i> Escopo / Responsabilidades
+                                                    </h3>
+                                                    {isEditing ? (
+                                                        <EditableMatrix value={draftCargo.escopo} onChange={v => setDraftCargo({...draftCargo, escopo: v})} titleCol="Atividade / Responsabilidade" />
+                                                    ) : (
+                                                        <SmartListOrMatrix text={cargoSelecionado.escopo} titleCol="Atividade / Responsabilidade" />
+                                                    )}
+                                                </section>
+
+                                                <section className={`bg-white p-6 rounded-xl border shadow-sm ${isEditing ? 'border-indigo-300 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
+                                                    <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-4 flex items-center gap-2">
+                                                        <i className="ph-fill ph-wrench text-xl text-gray-600"></i> Competências Técnicas
+                                                    </h3>
+                                                    {isEditing ? (
+                                                        <EditableMatrix value={draftCargo.compTecnicas} onChange={v => setDraftCargo({...draftCargo, compTecnicas: v})} titleCol="Item" hasEvidence={true} evidenceType="tecnica" />
+                                                    ) : (
+                                                        <SmartListOrMatrix text={cargoSelecionado.compTecnicas} titleCol="Item" hasEvidence={true} />
+                                                    )}
+                                                </section>
+
+                                                <section className={`bg-white p-6 rounded-xl border shadow-sm ${isEditing ? 'border-indigo-300 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
+                                                    <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-4 flex items-center gap-2">
+                                                        <i className="ph-fill ph-users text-xl text-emerald-600"></i> Competências Comportamentais
+                                                    </h3>
+                                                    {isEditing ? (
+                                                        <EditableMatrix value={draftCargo.compComportamentais} onChange={v => setDraftCargo({...draftCargo, compComportamentais: v})} titleCol="Item" hasEvidence={true} evidenceType="comportamental" />
+                                                    ) : (
+                                                        <SmartListOrMatrix text={cargoSelecionado.compComportamentais} titleCol="Item" hasEvidence={true} />
+                                                    )}
+                                                </section>
+
+                                                <section className={`bg-white p-6 rounded-xl border shadow-sm ${isEditing ? 'border-indigo-300 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
+                                                    <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-4 flex items-center gap-2">
+                                                        <i className="ph-fill ph-briefcase text-xl text-amber-600"></i> Experiência Profissional
+                                                    </h3>
+                                                    {isEditing ? (
+                                                        <EditableFixedMatrix value={draftCargo.experiencia} onChange={v => setDraftCargo({...draftCargo, experiencia: v})} titleCol="Critério" defaultItems={['Tempo', 'Atuação']} />
+                                                    ) : (
+                                                        <SmartListOrMatrix text={cargoSelecionado.experiencia} titleCol="Critério" />
+                                                    )}
+                                                </section>
+
+                                                <section className={`bg-white p-6 rounded-xl border shadow-sm ${isEditing ? 'border-indigo-300 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
+                                                    <h3 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 mb-4 flex items-center gap-2">
+                                                        <i className="ph-fill ph-graduation-cap text-xl text-purple-600"></i> Formação Acadêmica
+                                                    </h3>
+                                                    {isEditing ? (
+                                                        <EditableFixedMatrix value={draftCargo.formacao} onChange={v => setDraftCargo({...draftCargo, formacao: v})} titleCol="Exigência" defaultItems={['Mínima', 'Desejável']} />
+                                                    ) : (
+                                                        <SmartListOrMatrix text={cargoSelecionado.formacao} titleCol="Exigência" />
+                                                    )}
+                                                </section>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PortalApp />);
+    </script>
+</body>
+</html>
